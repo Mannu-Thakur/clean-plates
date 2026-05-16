@@ -14,6 +14,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from xml.sax.saxutils import escape
 
+from arq.connections import ArqRedis
 from fastapi import HTTPException, status
 from sqlalchemy import case, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,6 +39,7 @@ from app.schemas.warnings import (
     WarningSummarySchema,
 )
 from app.services import audit_service
+from app.services.rule_event_service import dispatch_rule_event
 
 
 _UNRESOLVED_WARNING_STATUSES = {"active", "escalated"}
@@ -144,11 +146,54 @@ def _penalty_state(penalty: PenaltyModel) -> dict:
     }
 
 
+async def _dispatch_warning_event(
+    db: AsyncSession,
+    warning: WarningModel,
+    *,
+    arq_pool: ArqRedis | None,
+    event_depth: int,
+) -> None:
+    count_result = await db.execute(select(StudentModel.warning_count).where(StudentModel.id == warning.student_id))
+    current_warning_count = int(count_result.scalar_one_or_none() or 0)
+    await dispatch_rule_event(
+        arq_pool,
+        "warning_issued",
+        {
+            "student_id": warning.student_id,
+            "warning_id": warning.id,
+            "level": warning.level,
+            "reason": warning.reason,
+            "rule_id": warning.rule_id,
+            "waste_entry_id": warning.waste_entry_id,
+            "current_warning_count": current_warning_count,
+        },
+        depth=event_depth,
+    )
+
+
+async def _dispatch_penalty_event(
+    penalty: PenaltyModel,
+    *,
+    arq_pool: ArqRedis | None,
+    event_depth: int,
+) -> None:
+    await dispatch_rule_event(
+        arq_pool,
+        "penalty_applied",
+        {
+            "student_id": penalty.student_id,
+            "penalty_id": penalty.id,
+            "points": penalty.points,
+            "warning_id": penalty.warning_id,
+            "rule_id": penalty.rule_id,
+        },
+        depth=event_depth,
+    )
+
+
 async def _increment_warning_count(db: AsyncSession, student_id: str) -> None:
     await db.execute(
-        update(StudentModel)
-        .where(StudentModel.id == student_id)
-        .values(warning_count=StudentModel.warning_count + 1)
+        update(StudentModel).where(StudentModel.id == student_id).values(warning_count=StudentModel.warning_count + 1)
     )
 
 
@@ -167,9 +212,7 @@ async def _decrement_warning_count(db: AsyncSession, student_id: str) -> None:
 
 async def _increment_penalty_count(db: AsyncSession, student_id: str) -> None:
     await db.execute(
-        update(StudentModel)
-        .where(StudentModel.id == student_id)
-        .values(penalty_count=StudentModel.penalty_count + 1)
+        update(StudentModel).where(StudentModel.id == student_id).values(penalty_count=StudentModel.penalty_count + 1)
     )
 
 
@@ -192,7 +235,9 @@ async def _refresh_student_status(db: AsyncSession, student_id: str) -> None:
         return
 
     penalty_result = await db.execute(
-        select(func.count(PenaltyModel.id)).where(PenaltyModel.student_id == student_id, PenaltyModel.status == "active")
+        select(func.count(PenaltyModel.id)).where(
+            PenaltyModel.student_id == student_id, PenaltyModel.status == "active"
+        )
     )
     warning_result = await db.execute(
         select(func.count(WarningModel.id)).where(
@@ -303,6 +348,8 @@ async def create_warning(
     body: WarningCreateSchema,
     *,
     current_user: UserSchema | None = None,
+    arq_pool: ArqRedis | None = None,
+    event_depth: int = 1,
 ) -> WarningSchema:
     await _get_student_or_404(db, student_id)
     warning = WarningModel(
@@ -333,6 +380,10 @@ async def create_warning(
         after_state=_warning_state(warning),
         **_audit_user(current_user),
     )
+    # P2-fix: commit before enqueue so the ARQ worker (separate process)
+    # can read the warning row when it picks up the job immediately.
+    await db.commit()
+    await _dispatch_warning_event(db, warning, arq_pool=arq_pool, event_depth=event_depth)
     return await _warning_schema(db, warning)
 
 
@@ -434,6 +485,8 @@ async def apply_penalty(
     warning_id: str,
     *,
     current_user: UserSchema | None = None,
+    arq_pool: ArqRedis | None = None,
+    event_depth: int = 1,
 ) -> PenaltySchema:
     warning = await _get_warning_or_404(db, warning_id)
     if warning.status == "converted_to_penalty":
@@ -442,7 +495,9 @@ async def apply_penalty(
         if existing is not None:
             return await _penalty_schema(db, existing)
     if warning.status not in {"active", "escalated"}:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Only active or escalated warnings can become penalties")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Only active or escalated warnings can become penalties"
+        )
 
     before_warning = _warning_state(warning)
     penalty = PenaltyModel(
@@ -473,6 +528,9 @@ async def apply_penalty(
         after_state=_penalty_state(penalty),
         **_audit_user(current_user),
     )
+    # P2-fix: commit before enqueue so the ARQ worker can read the penalty row.
+    await db.commit()
+    await _dispatch_penalty_event(penalty, arq_pool=arq_pool, event_depth=event_depth)
     return await _penalty_schema(db, penalty)
 
 
@@ -482,6 +540,8 @@ async def create_penalty_direct(
     body: PenaltyCreateSchema,
     *,
     current_user: UserSchema | None = None,
+    arq_pool: ArqRedis | None = None,
+    event_depth: int = 1,
 ) -> PenaltySchema:
     await _get_student_or_404(db, student_id)
     penalty = PenaltyModel(
@@ -512,6 +572,9 @@ async def create_penalty_direct(
         after_state=_penalty_state(penalty),
         **_audit_user(current_user),
     )
+    # P2-fix: commit before enqueue so the ARQ worker can read the penalty row.
+    await db.commit()
+    await _dispatch_penalty_event(penalty, arq_pool=arq_pool, event_depth=event_depth)
     return await _penalty_schema(db, penalty)
 
 
@@ -554,7 +617,9 @@ async def list_penalties(
     page = max(page, 1)
     size = min(max(size, 1), 100)
 
-    count_stmt = _apply_penalty_filters(select(func.count(PenaltyModel.id)), status_filter=status_filter, student_id=student_id)
+    count_stmt = _apply_penalty_filters(
+        select(func.count(PenaltyModel.id)), status_filter=status_filter, student_id=student_id
+    )
     total_result = await db.execute(count_stmt)
     total = int(total_result.scalar_one() or 0)
 
@@ -624,6 +689,8 @@ async def review_escalation(
     body: ReviewEscalationSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
+    event_depth: int = 1,
 ) -> None:
     escalation = await _get_escalation_or_404(db, escalation_id)
     if escalation.status != "pending":
@@ -636,7 +703,13 @@ async def review_escalation(
     await db.flush()
 
     if body.decision == "approved":
-        await apply_penalty(db, escalation.warning_id, current_user=current_user)
+        await apply_penalty(
+            db,
+            escalation.warning_id,
+            current_user=current_user,
+            arq_pool=arq_pool,
+            event_depth=event_depth,
+        )
     else:
         warning = await _get_warning_or_404(db, escalation.warning_id)
         before = _warning_state(warning)

@@ -97,6 +97,7 @@ from app.routers.health import router as health_router  # noqa: E402
 from app.routers.auth import router as auth_router  # noqa: E402
 from app.routers.devices import router as devices_router  # noqa: E402
 from app.routers.ml import router as ml_router  # noqa: E402
+from app.routers.rules import router as rules_router  # noqa: E402
 from app.routers.students import router as students_router  # noqa: E402
 from app.routers.warnings import router as warnings_router  # noqa: E402
 from app.routers.waste import router as waste_router  # noqa: E402
@@ -108,3 +109,4 @@ app.include_router(students_router, prefix="/api/v1")
 app.include_router(waste_router, prefix="/api/v1")
 app.include_router(ml_router, prefix="/api/v1")
 app.include_router(warnings_router, prefix="/api/v1")
+app.include_router(rules_router, prefix="/api/v1")

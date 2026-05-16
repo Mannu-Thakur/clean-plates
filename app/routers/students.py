@@ -9,10 +9,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, File, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import student_controller
+from app.core.redis import get_arq_pool
 from app.middleware.db import get_db_session
 from app.middleware.rbac import require_roles
 from app.schemas.auth import UserSchema
@@ -32,7 +34,13 @@ from app.schemas.students import (
     TimelineSchema,
     WasteStatsSchema,
 )
-from app.schemas.warnings import PenaltyCreateSchema, PenaltySchema, StudentWarningsSchema, WarningCreateSchema, WarningSchema
+from app.schemas.warnings import (
+    PenaltyCreateSchema,
+    PenaltySchema,
+    StudentWarningsSchema,
+    WarningCreateSchema,
+    WarningSchema,
+)
 from app.schemas.waste import PaginatedEntries
 
 router = APIRouter(prefix="/students", tags=["Students"])
@@ -110,8 +118,9 @@ async def bulk_warn(
     body: BulkWarnSchema,
     current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    await student_controller.bulk_warn(db, body, current_user=current_user)
+    await student_controller.bulk_warn(db, body, current_user=current_user, arq_pool=arq_pool)
     return MessageSchema(message="Warnings issued")
 
 
@@ -219,8 +228,15 @@ async def create_warning(
     body: WarningCreateSchema,
     current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await student_controller.create_warning(db, str(student_id), body, current_user=current_user)
+    return await student_controller.create_warning(
+        db,
+        str(student_id),
+        body,
+        current_user=current_user,
+        arq_pool=arq_pool,
+    )
 
 
 @router.post("/{student_id}/penalties", response_model=PenaltySchema, status_code=201)
@@ -229,8 +245,15 @@ async def create_penalty_direct(
     body: PenaltyCreateSchema,
     current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await student_controller.create_penalty_direct(db, str(student_id), body, current_user=current_user)
+    return await student_controller.create_penalty_direct(
+        db,
+        str(student_id),
+        body,
+        current_user=current_user,
+        arq_pool=arq_pool,
+    )
 
 
 @router.patch("/{student_id}", response_model=StudentSchema)

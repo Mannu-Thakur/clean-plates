@@ -12,6 +12,7 @@ import uuid
 from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from arq.connections import ArqRedis
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -33,6 +34,7 @@ from app.schemas.waste import (
     WasteEntrySchema,
 )
 from app.services import config_service
+from app.services.rule_event_service import dispatch_rule_event
 
 
 _IMAGE_EXTENSIONS_BY_TYPE = {
@@ -237,12 +239,38 @@ async def _entry_row(db: AsyncSession, entry_id: str):
     return result.one_or_none()
 
 
+async def _dispatch_waste_entry_event(
+    entry: WasteEntryModel,
+    *,
+    arq_pool: ArqRedis | None,
+    event_depth: int,
+) -> None:
+    await dispatch_rule_event(
+        arq_pool,
+        "waste_entry_created",
+        {
+            "waste_entry_id": entry.id,
+            "student_id": entry.student_id,
+            "device_id": entry.device_id,
+            "weight_grams": entry.weight_grams,
+            "meal_type": entry.meal_type,
+            "food_items": entry.food_items or [],
+            "severity": entry.severity,
+            "session_date": entry.session_date,
+            "timestamp": entry.timestamp,
+        },
+        depth=event_depth,
+    )
+
+
 async def create_waste_entry(
     db: AsyncSession,
     body: WasteEntryCreateSchema,
     *,
     authenticated_device: DeviceModel | None = None,
     source: str = "ml",
+    arq_pool: ArqRedis | None = None,
+    event_depth: int = 1,
 ) -> WasteEntrySchema:
     device = await _resolve_device(db, body.device_serial)
     await _ensure_authenticated_device(device, authenticated_device)
@@ -276,9 +304,14 @@ async def create_waste_entry(
 
     await _refresh_student_waste_metrics(db, student.id)
     row = await _entry_row(db, entry.id)
+    # P2-fix: commit before enqueue — ARQ worker runs in a separate process
+    # and cannot see data that exists only inside an uncommitted savepoint.
+    await db.commit()
     if row is None:
+        await _dispatch_waste_entry_event(entry, arq_pool=arq_pool, event_depth=event_depth)
         return _entry_schema(entry, student_device_id=student.device_id)
     saved_entry, student_device_id, student_name = row
+    await _dispatch_waste_entry_event(saved_entry, arq_pool=arq_pool, event_depth=event_depth)
     return _entry_schema(saved_entry, student_device_id=student_device_id, student_name=student_name)
 
 
@@ -287,6 +320,7 @@ async def bulk_sync(
     body: BulkWasteIngestSchema,
     *,
     authenticated_device: DeviceModel | None = None,
+    arq_pool: ArqRedis | None = None,
 ) -> SyncResultSchema:
     inserted = 0
     skipped = 0
@@ -307,7 +341,13 @@ async def bulk_sync(
                 skipped += 1
                 continue
 
-            await create_waste_entry(db, payload, authenticated_device=authenticated_device, source="sync")
+            await create_waste_entry(
+                db,
+                payload,
+                authenticated_device=authenticated_device,
+                source="sync",
+                arq_pool=arq_pool,
+            )
             inserted += 1
         except HTTPException as exc:
             if exc.status_code == status.HTTP_409_CONFLICT:
@@ -410,7 +450,9 @@ async def list_entries(
         date_from=date_from,
         date_to=date_to,
     )
-    stmt = stmt.order_by(WasteEntryModel.timestamp.desc(), WasteEntryModel.id.asc()).offset((page - 1) * size).limit(size)
+    stmt = (
+        stmt.order_by(WasteEntryModel.timestamp.desc(), WasteEntryModel.id.asc()).offset((page - 1) * size).limit(size)
+    )
     result = await db.execute(stmt)
     rows = result.all()
 
@@ -514,7 +556,9 @@ async def upload_image(
     content_type = (image_file.content_type or "").lower()
     extension = _IMAGE_EXTENSIONS_BY_TYPE.get(content_type)
     if extension is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only JPEG, PNG, and WebP images are supported")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Only JPEG, PNG, and WebP images are supported"
+        )
 
     os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
     filename = f"plate_{uuid.uuid4().hex}{extension}"

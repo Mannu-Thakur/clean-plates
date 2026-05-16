@@ -32,6 +32,24 @@ services:
     command: redis-server --appendonly yes
     restart: unless-stopped
 
+  worker:
+    build: .
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./reports:/app/reports
+      - ./backups:/app/backups
+      - ./logs:/app/logs
+    environment:
+      - DEBUG=true
+    env_file:
+      - .env
+    depends_on:
+      - redis
+    command: arq app.workers.arq_settings.WorkerSettings
+    restart: unless-stopped
+
   # ── Nginx Reverse Proxy ────────────────────────────────────────────────
   nginx:
     image: nginx:alpine

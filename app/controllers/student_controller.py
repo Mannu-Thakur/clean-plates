@@ -6,6 +6,7 @@ Ref: docs/plans/02-controllers.md section 3.
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,7 +26,13 @@ from app.schemas.students import (
     TimelineSchema,
     WasteStatsSchema,
 )
-from app.schemas.warnings import PenaltyCreateSchema, PenaltySchema, StudentWarningsSchema, WarningCreateSchema, WarningSchema
+from app.schemas.warnings import (
+    PenaltyCreateSchema,
+    PenaltySchema,
+    StudentWarningsSchema,
+    WarningCreateSchema,
+    WarningSchema,
+)
 from app.schemas.waste import PaginatedEntries
 from app.services import student_service
 
@@ -126,8 +133,9 @@ async def bulk_warn(
     body: BulkWarnSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
-    await student_service.bulk_warn(db, body, current_user=current_user)
+    await student_service.bulk_warn(db, body, current_user=current_user, arq_pool=arq_pool)
 
 
 async def get_student_stats(db: AsyncSession, student_id: str, period: str = "30d") -> WasteStatsSchema:
@@ -170,8 +178,9 @@ async def create_warning(
     body: WarningCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> WarningSchema:
-    return await student_service.create_warning(db, student_id, body, current_user=current_user)
+    return await student_service.create_warning(db, student_id, body, current_user=current_user, arq_pool=arq_pool)
 
 
 async def create_penalty_direct(
@@ -180,5 +189,8 @@ async def create_penalty_direct(
     body: PenaltyCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> PenaltySchema:
-    return await student_service.create_penalty_direct(db, student_id, body, current_user=current_user)
+    return await student_service.create_penalty_direct(
+        db, student_id, body, current_user=current_user, arq_pool=arq_pool
+    )

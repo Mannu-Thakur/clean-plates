@@ -15,6 +15,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from xml.sax.saxutils import escape
 
+from arq.connections import ArqRedis
 from fastapi import HTTPException, UploadFile, status
 from pydantic import ValidationError
 from sqlalchemy import func, select
@@ -44,15 +45,20 @@ from app.schemas.students import (
     TimelineSchema,
     WasteStatsSchema,
 )
-from app.schemas.warnings import PenaltyCreateSchema, PenaltySchema, StudentWarningsSchema, WarningCreateSchema, WarningSchema
+from app.schemas.warnings import (
+    PenaltyCreateSchema,
+    PenaltySchema,
+    StudentWarningsSchema,
+    WarningCreateSchema,
+    WarningSchema,
+)
 from app.schemas.waste import PaginatedEntries
 from app.services import audit_service
 from app.services import config_service
 
 
 _CARD_CONFLICT_MESSAGE = (
-    "This card ID is already mapped to another student. "
-    "Deactivate that student first or use a different card ID."
+    "This card ID is already mapped to another student. Deactivate that student first or use a different card ID."
 )
 
 
@@ -188,9 +194,7 @@ def _improvement_pct(previous_avg: float, current_avg: float) -> float | None:
 
 async def _get_student_or_404(db: AsyncSession, student_id: str) -> StudentModel:
     result = await db.execute(
-        select(StudentModel)
-        .options(selectinload(StudentModel.mapping))
-        .where(StudentModel.id == student_id)
+        select(StudentModel).options(selectinload(StudentModel.mapping)).where(StudentModel.id == student_id)
     )
     student = result.scalar_one_or_none()
     if student is None:
@@ -200,17 +204,13 @@ async def _get_student_or_404(db: AsyncSession, student_id: str) -> StudentModel
 
 async def _get_student_by_device_id(db: AsyncSession, device_id: str) -> StudentModel | None:
     result = await db.execute(
-        select(StudentModel)
-        .options(selectinload(StudentModel.mapping))
-        .where(StudentModel.device_id == device_id)
+        select(StudentModel).options(selectinload(StudentModel.mapping)).where(StudentModel.device_id == device_id)
     )
     return result.scalar_one_or_none()
 
 
 async def _get_mapping_by_student_id(db: AsyncSession, student_id: str) -> StudentMappingModel | None:
-    result = await db.execute(
-        select(StudentMappingModel).where(StudentMappingModel.student_id == student_id)
-    )
+    result = await db.execute(select(StudentMappingModel).where(StudentMappingModel.student_id == student_id))
     return result.scalar_one_or_none()
 
 
@@ -785,6 +785,7 @@ async def bulk_warn(
     body: BulkWarnSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
     from app.services import warning_service
 
@@ -794,6 +795,7 @@ async def bulk_warn(
             str(student_id),
             WarningCreateSchema(level=body.level, reason=body.reason, send_email=body.send_email),
             current_user=current_user,
+            arq_pool=arq_pool,
         )
 
 
@@ -967,10 +969,11 @@ async def create_warning(
     body: WarningCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> WarningSchema:
     from app.services import warning_service
 
-    return await warning_service.create_warning(db, student_id, body, current_user=current_user)
+    return await warning_service.create_warning(db, student_id, body, current_user=current_user, arq_pool=arq_pool)
 
 
 async def create_penalty_direct(
@@ -979,7 +982,10 @@ async def create_penalty_direct(
     body: PenaltyCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> PenaltySchema:
     from app.services import warning_service
 
-    return await warning_service.create_penalty_direct(db, student_id, body, current_user=current_user)
+    return await warning_service.create_penalty_direct(
+        db, student_id, body, current_user=current_user, arq_pool=arq_pool
+    )

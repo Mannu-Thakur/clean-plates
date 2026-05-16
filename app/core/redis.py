@@ -26,9 +26,9 @@ async def init_arq_pool() -> ArqRedis:
     return await create_pool(RedisSettings.from_dsn(settings.REDIS_URL))
 
 
-def get_arq_pool(request: Request) -> ArqRedis:
+def get_arq_pool(request: Request) -> ArqRedis | None:
     """FastAPI dependency — returns the lifespan-initialized ARQ pool.
 
     ARQ workers should use ``ctx['redis']`` instead.
     """
-    return request.app.state.arq_pool
+    return getattr(request.app.state, "arq_pool", None)

@@ -6,12 +6,19 @@ Ref: docs/plans/02-controllers.md section 15.
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.device import DeviceModel
 from app.schemas.common import LogoUrlSchema, MessageSchema
-from app.schemas.waste import BulkWasteIngestSchema, DetectionPayload, HeartbeatPayload, SyncResultSchema, WasteEntrySchema
+from app.schemas.waste import (
+    BulkWasteIngestSchema,
+    DetectionPayload,
+    HeartbeatPayload,
+    SyncResultSchema,
+    WasteEntrySchema,
+)
 from app.services import waste_service
 
 
@@ -20,8 +27,9 @@ async def ingest_detection(
     body: DetectionPayload,
     *,
     device: DeviceModel,
+    arq_pool: ArqRedis | None = None,
 ) -> WasteEntrySchema:
-    return await waste_service.create_waste_entry(db, body, authenticated_device=device, source="ml")
+    return await waste_service.create_waste_entry(db, body, authenticated_device=device, source="ml", arq_pool=arq_pool)
 
 
 async def bulk_ingest(
@@ -29,8 +37,9 @@ async def bulk_ingest(
     body: BulkWasteIngestSchema,
     *,
     device: DeviceModel,
+    arq_pool: ArqRedis | None = None,
 ) -> SyncResultSchema:
-    return await waste_service.bulk_sync(db, body, authenticated_device=device)
+    return await waste_service.bulk_sync(db, body, authenticated_device=device, arq_pool=arq_pool)
 
 
 async def ml_heartbeat(

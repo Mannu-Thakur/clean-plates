@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from arq.connections import ArqRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.waste import (
@@ -25,12 +26,16 @@ from app.services import waste_service
 async def create_waste_entry(
     db: AsyncSession,
     body: WasteEntryCreateSchema,
+    *,
+    arq_pool: ArqRedis | None = None,
 ) -> WasteEntrySchema:
-    return await waste_service.create_waste_entry(db, body)
+    return await waste_service.create_waste_entry(db, body, arq_pool=arq_pool)
 
 
-async def bulk_sync(db: AsyncSession, body: BulkWasteIngestSchema) -> SyncResultSchema:
-    return await waste_service.bulk_sync(db, body)
+async def bulk_sync(
+    db: AsyncSession, body: BulkWasteIngestSchema, *, arq_pool: ArqRedis | None = None
+) -> SyncResultSchema:
+    return await waste_service.bulk_sync(db, body, arq_pool=arq_pool)
 
 
 async def get_entry(db: AsyncSession, entry_id: str) -> WasteEntryDetailSchema:

@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import device_controller
+from app.core.redis import get_arq_pool
 from app.middleware.db import get_db_session
 from app.middleware.rbac import require_roles
 from app.schemas.auth import UserSchema
@@ -106,8 +108,9 @@ async def restart_service(
     device_id: UUID,
     current_user: UserSchema = Depends(require_roles(*DEVICE_WRITE_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    await device_controller.restart_service(db, str(device_id), current_user=current_user)
+    await device_controller.restart_service(db, str(device_id), current_user=current_user, arq_pool=arq_pool)
     return MessageSchema(message="Restart command sent")
 
 

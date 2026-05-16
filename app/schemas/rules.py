@@ -10,7 +10,7 @@ from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.schemas.common import PaginatedBase
 
@@ -20,10 +20,25 @@ class ConditionSchema(BaseModel):
     operator: str
     value: Any
 
+    @field_validator("field", "operator", mode="before")
+    @classmethod
+    def _strip_condition_strings(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
 
 class ConditionGroupSchema(BaseModel):
     logic: str = "AND"
     conditions: list[ConditionSchema] = Field(default_factory=list)
+
+    @field_validator("logic")
+    @classmethod
+    def _valid_logic(cls, value: str) -> str:
+        normalized = value.strip().upper()
+        if normalized not in {"AND", "OR"}:
+            raise ValueError("logic must be AND or OR")
+        return normalized
 
 
 class TimeConstraintSchema(BaseModel):
@@ -40,10 +55,45 @@ class ActionSchema(BaseModel):
     type: str
     params: dict[str, Any] = Field(default_factory=dict)
 
+    @field_validator("type", mode="before")
+    @classmethod
+    def _strip_type(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
 
 def _validate_actions(actions: list[ActionSchema] | None) -> list[ActionSchema] | None:
     if not actions:
         return actions
+    allowed = {
+        "generate_warning",
+        "send_email",
+        "increase_penalty",
+        "trigger_escalation",
+        "classify_student",
+        "create_audit_log",
+    }
+    for action in actions:
+        if action.type not in allowed:
+            raise ValueError(f"unsupported action type: {action.type}")
+
+        params = action.params or {}
+        if action.type == "generate_warning" and ("level" not in params or "reason" not in params):
+            raise ValueError("generate_warning requires level and reason")
+        if action.type == "increase_penalty" and "points" not in params:
+            raise ValueError("increase_penalty requires points")
+        if action.type == "trigger_escalation" and ("escalated_to_role" not in params or "reason" not in params):
+            raise ValueError("trigger_escalation requires escalated_to_role and reason")
+        if action.type == "classify_student" and "status" not in params:
+            raise ValueError("classify_student requires status")
+        if action.type == "create_audit_log" and "summary" not in params:
+            raise ValueError("create_audit_log requires summary")
+        if action.type == "send_email" and not (
+            params.get("template_id") or (params.get("subject") and params.get("body"))
+        ):
+            raise ValueError("send_email requires template_id or subject and body")
+
     classifications = {
         action.params.get("status")
         for action in actions
@@ -51,6 +101,13 @@ def _validate_actions(actions: list[ActionSchema] | None) -> list[ActionSchema] 
     }
     if len(classifications) > 1:
         raise ValueError("actions cannot contain contradictory classify_student statuses")
+    escalation_roles = {
+        action.params.get("escalated_to_role")
+        for action in actions
+        if action.type == "trigger_escalation" and action.params.get("escalated_to_role") is not None
+    }
+    if len(escalation_roles) > 1:
+        raise ValueError("actions cannot contain contradictory trigger_escalation roles")
     return actions
 
 
@@ -71,6 +128,13 @@ class RuleCreateSchema(BaseModel):
         _validate_actions(self.actions)
         return self
 
+    @field_validator("type", "priority", mode="before")
+    @classmethod
+    def _strip_rule_strings(cls, value: str) -> str:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
+
 
 class RuleUpdateSchema(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
@@ -87,6 +151,13 @@ class RuleUpdateSchema(BaseModel):
     def _check_actions(self):
         _validate_actions(self.actions)
         return self
+
+    @field_validator("priority", mode="before")
+    @classmethod
+    def _strip_priority(cls, value: str | None) -> str | None:
+        if isinstance(value, str):
+            return value.strip().lower()
+        return value
 
 
 class RuleSchema(BaseModel):
@@ -113,9 +184,13 @@ class RuleSchema(BaseModel):
 class TestPayloadSchema(BaseModel):
     waste_grams: float | None = None
     meal_type: str | None = None
+    severity: str | None = None
     student_branch: str | None = None
     student_year: int | None = None
     frequency_count: int | None = None
+    warning_count: int | None = None
+    penalty_count: int | None = None
+    sustainability_score: float | None = None
 
 
 class TestResultSchema(BaseModel):

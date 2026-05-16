@@ -6,15 +6,23 @@ Ref: docs/plans/03-routes.md section 5.
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, File, Header, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import ml_controller
+from app.core.redis import get_arq_pool
 from app.middleware.auth import get_api_key_device
 from app.middleware.db import get_db_session
 from app.models.device import DeviceModel
 from app.schemas.common import LogoUrlSchema, MessageSchema
-from app.schemas.waste import BulkWasteIngestSchema, DetectionPayload, HeartbeatPayload, SyncResultSchema, WasteEntrySchema
+from app.schemas.waste import (
+    BulkWasteIngestSchema,
+    DetectionPayload,
+    HeartbeatPayload,
+    SyncResultSchema,
+    WasteEntrySchema,
+)
 
 router = APIRouter(prefix="/ml", tags=["ML Ingestion"])
 
@@ -24,8 +32,9 @@ async def ingest_detection(
     body: DetectionPayload,
     device: DeviceModel = Depends(get_api_key_device),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await ml_controller.ingest_detection(db, body, device=device)
+    return await ml_controller.ingest_detection(db, body, device=device, arq_pool=arq_pool)
 
 
 @router.post("/sync", response_model=SyncResultSchema)
@@ -33,8 +42,9 @@ async def bulk_ingest(
     body: BulkWasteIngestSchema,
     device: DeviceModel = Depends(get_api_key_device),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await ml_controller.bulk_ingest(db, body, device=device)
+    return await ml_controller.bulk_ingest(db, body, device=device, arq_pool=arq_pool)
 
 
 @router.post("/heartbeat", response_model=MessageSchema)

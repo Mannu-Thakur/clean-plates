@@ -6,10 +6,12 @@ Ref: docs/plans/02-controllers.md section 2.
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from datetime import UTC, datetime, timedelta
 
+from arq.connections import ArqRedis
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -294,10 +296,23 @@ async def restart_service(
     device_id: str,
     *,
     current_user: UserSchema | None = None,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
     device = await _get_device_or_404(db, device_id)
     if device.status == "decommissioned":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot restart a decommissioned device")
+    if arq_pool is None:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Redis command bus is unavailable")
+
+    channel = f"cleanplates:devices:{device.id}:commands"
+    payload = {
+        "command": "restart",
+        "device_id": device.id,
+        "device_serial": device.device_serial,
+        "requested_at": _utcnow().isoformat(),
+        "requested_by": str(current_user.id) if current_user else None,
+    }
+    await arq_pool.publish(channel, json.dumps(payload))
 
     await audit_service.log(
         db,
@@ -306,7 +321,7 @@ async def restart_service(
         resource_type="device",
         resource_id=device.id,
         summary=f"Restart requested for device '{device.device_serial}'",
-        metadata={"delivery": "stubbed_until_phase_4"},
+        metadata={"delivery": "redis_pubsub", "channel": channel, "command": "restart"},
         **_audit_user(current_user),
     )
 

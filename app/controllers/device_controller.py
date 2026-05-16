@@ -6,6 +6,7 @@ Ref: docs/plans/02-controllers.md section 2.
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.auth import UserSchema
@@ -77,8 +78,9 @@ async def restart_service(
     device_id: str,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
-    await device_service.restart_service(db, device_id, current_user=current_user)
+    await device_service.restart_service(db, device_id, current_user=current_user, arq_pool=arq_pool)
 
 
 async def decommission(

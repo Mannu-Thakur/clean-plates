@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date
 
+from arq.connections import ArqRedis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.auth import UserSchema
@@ -62,8 +63,9 @@ async def create_warning(
     body: WarningCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> WarningSchema:
-    return await warning_service.create_warning(db, student_id, body, current_user=current_user)
+    return await warning_service.create_warning(db, student_id, body, current_user=current_user, arq_pool=arq_pool)
 
 
 async def resolve_warning(
@@ -91,8 +93,9 @@ async def apply_penalty(
     warning_id: str,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> PenaltySchema:
-    return await warning_service.apply_penalty(db, warning_id, current_user=current_user)
+    return await warning_service.apply_penalty(db, warning_id, current_user=current_user, arq_pool=arq_pool)
 
 
 async def bulk_resolve(
@@ -148,8 +151,11 @@ async def create_penalty_direct(
     body: PenaltyCreateSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> PenaltySchema:
-    return await warning_service.create_penalty_direct(db, student_id, body, current_user=current_user)
+    return await warning_service.create_penalty_direct(
+        db, student_id, body, current_user=current_user, arq_pool=arq_pool
+    )
 
 
 async def revoke_penalty(
@@ -176,5 +182,6 @@ async def review_escalation(
     body: ReviewEscalationSchema,
     *,
     current_user: UserSchema,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
-    await warning_service.review_escalation(db, escalation_id, body, current_user=current_user)
+    await warning_service.review_escalation(db, escalation_id, body, current_user=current_user, arq_pool=arq_pool)

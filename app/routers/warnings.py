@@ -9,10 +9,12 @@ from __future__ import annotations
 from datetime import date
 from uuid import UUID
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import warning_controller
+from app.core.redis import get_arq_pool
 from app.middleware.db import get_db_session
 from app.middleware.rbac import require_roles
 from app.schemas.auth import UserSchema
@@ -134,8 +136,9 @@ async def apply_penalty(
     warning_id: UUID,
     current_user: UserSchema = Depends(require_roles(*WARNING_ADMIN_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await warning_controller.apply_penalty(db, str(warning_id), current_user=current_user)
+    return await warning_controller.apply_penalty(db, str(warning_id), current_user=current_user, arq_pool=arq_pool)
 
 
 @penalties_router.get("/", response_model=PaginatedPenalties)
@@ -182,8 +185,11 @@ async def review_escalation(
     body: ReviewEscalationSchema,
     current_user: UserSchema = Depends(require_roles(*WARNING_ADMIN_ROLES)),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    await warning_controller.review_escalation(db, str(escalation_id), body, current_user=current_user)
+    await warning_controller.review_escalation(
+        db, str(escalation_id), body, current_user=current_user, arq_pool=arq_pool
+    )
     return MessageSchema(message="Escalation reviewed")
 
 
