@@ -10,6 +10,9 @@ from app.models.user import UserModel, RefreshTokenModel
 from app.models.role import RoleModel
 from app.models.config import ConfigModel
 from app.models.audit import AuditEventModel
+from app.models.device import DeviceModel, DeviceHealthModel
+from app.models.student import StudentModel, StudentMappingModel
+from app.models.food import FoodItemModel
 
 __all__ = [
     "Base",
@@ -18,4 +21,9 @@ __all__ = [
     "RoleModel",
     "ConfigModel",
     "AuditEventModel",
+    "DeviceModel",
+    "DeviceHealthModel",
+    "StudentModel",
+    "StudentMappingModel",
+    "FoodItemModel",
 ]

@@ -1,16 +1,14 @@
 """
-JWT authentication dependencies.
+JWT and API-key authentication dependencies.
 
-- ``get_current_user``: standard JWT bearer dependency for protected routes.
-- ``get_current_user_optional``: for WebSocket (token in query param).
-- ``get_api_key_device``: for ML pipeline routes.
-
-Ref: 04-middlewares.md §1, §11
+- get_current_user: standard JWT bearer dependency for protected routes.
+- get_current_user_optional: for WebSocket token lookup.
+- get_api_key_device: validates edge-device API keys.
 """
 
 from __future__ import annotations
 
-from fastapi import Depends, HTTPException, Query, status
+from fastapi import Depends, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,7 +50,7 @@ async def get_current_user_optional(
     token: str | None = Query(default=None),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserSchema | None:
-    """For WebSocket — extract token from query param, return user or None."""
+    """For WebSocket auth - extract token from query param, return user or None."""
     if not token:
         return None
 
@@ -74,23 +72,18 @@ async def get_current_user_optional(
 
 
 async def get_api_key_device(
-    x_api_key: str = Depends(lambda: ""),  # Placeholder — replaced by Header dependency
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
     db: AsyncSession = Depends(get_db_session),
 ):
-    """For ML pipeline routes — validates API key against device records.
+    """Validate an edge API key and return the matching active DeviceModel."""
+    if not x_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing API key")
 
-    NOTE: Full implementation deferred to Phase 2 when DeviceModel exists.
-    This stub is here to establish the dependency signature.
-    """
-    # Phase 2: hash the key and look up device
-    # from app.models.device import DeviceModel
-    # key_hash = hash_token(x_api_key)
-    # result = await db.execute(select(DeviceModel).where(DeviceModel.api_key_hash == key_hash))
-    # device = result.scalar_one_or_none()
-    # if not device or device.is_deleted:
-    #     raise HTTPException(status_code=401, detail="Invalid API key")
-    # return device
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="API key auth will be available in Phase 2",
-    )
+    from app.models.device import DeviceModel
+
+    key_hash = hash_token(x_api_key)
+    result = await db.execute(select(DeviceModel).where(DeviceModel.api_key_hash == key_hash))
+    device = result.scalar_one_or_none()
+    if device is None or device.is_deleted or device.status == "decommissioned":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid API key")
+    return device

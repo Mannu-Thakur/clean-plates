@@ -95,6 +95,10 @@ app.mount("/static/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="u
 # ── Router registration ─────────────────────────────────────────────────────
 from app.routers.health import router as health_router  # noqa: E402
 from app.routers.auth import router as auth_router  # noqa: E402
+from app.routers.devices import router as devices_router  # noqa: E402
+from app.routers.students import router as students_router  # noqa: E402
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api/v1")
+app.include_router(devices_router, prefix="/api/v1")
+app.include_router(students_router, prefix="/api/v1")

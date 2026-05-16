@@ -28,7 +28,7 @@ _db_path = settings.DATABASE_URL.replace("sqlite+aiosqlite:///", "")
 os.makedirs(os.path.dirname(_db_path) or ".", exist_ok=True)
 
 # Import all models so Base.metadata is fully populated
-from app.models import Base  # noqa: F401
+from app.models import Base  # noqa: E402, F401
 
 # Alembic Config object
 config = context.config
@@ -80,11 +80,14 @@ async def run_async_migrations() -> None:
         # ⚠ FK Batch Bug fix: disable FKs during migration to prevent
         # batch mode from failing when recreating tables
         await connection.execute(text("PRAGMA foreign_keys=OFF"))
+        await connection.commit()
 
         await connection.run_sync(do_run_migrations)
+        await connection.commit()
 
         # Re-enable FKs after migration
         await connection.execute(text("PRAGMA foreign_keys=ON"))
+        await connection.commit()
 
     await connectable.dispose()
 
