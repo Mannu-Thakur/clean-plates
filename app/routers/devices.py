@@ -1,8 +1,7 @@
 """
 Device router - Phase 2 device endpoints.
 
-Ref: docs/plans/03-routes.md section 2. The restart route is intentionally
-deferred to Phase 4 with the rule/command infrastructure.
+Ref: docs/plans/03-routes.md section 2.
 """
 
 from __future__ import annotations
@@ -100,6 +99,16 @@ async def trigger_sync(
     db: AsyncSession = Depends(get_db_session),
 ):
     return await device_controller.trigger_sync(db, str(device_id), current_user=current_user)
+
+
+@router.post("/{device_id}/restart", response_model=MessageSchema)
+async def restart_service(
+    device_id: UUID,
+    current_user: UserSchema = Depends(require_roles(*DEVICE_WRITE_ROLES)),
+    db: AsyncSession = Depends(get_db_session),
+):
+    await device_controller.restart_service(db, str(device_id), current_user=current_user)
+    return MessageSchema(message="Restart command sent")
 
 
 @router.post("/{device_id}/decommission", response_model=MessageSchema)

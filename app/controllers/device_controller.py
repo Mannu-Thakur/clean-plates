@@ -72,6 +72,15 @@ async def trigger_sync(
     return await device_service.trigger_sync(db, device_id, current_user=current_user)
 
 
+async def restart_service(
+    db: AsyncSession,
+    device_id: str,
+    *,
+    current_user: UserSchema,
+) -> None:
+    await device_service.restart_service(db, device_id, current_user=current_user)
+
+
 async def decommission(
     db: AsyncSession,
     device_id: str,

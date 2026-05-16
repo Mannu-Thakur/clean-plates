@@ -6,12 +6,7 @@ Ref: 02-controllers.md §1
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-
-
-def _utcnow() -> datetime:
-    """Naive UTC — safe for SQLite datetime columns."""
-    return datetime.utcnow()  # noqa: DTZ003
+from datetime import datetime, timedelta
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +23,11 @@ from app.core.security import (
 from app.models.user import RefreshTokenModel, UserModel
 from app.schemas.auth import LoginResponseSchema, TokenPairSchema, UserSchema
 from app.services import audit_service
+
+
+def _utcnow() -> datetime:
+    """Naive UTC - safe for SQLite datetime columns."""
+    return datetime.utcnow()  # noqa: DTZ003
 
 
 async def authenticate(

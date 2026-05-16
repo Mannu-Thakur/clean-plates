@@ -16,15 +16,24 @@ from app.controllers import student_controller
 from app.middleware.db import get_db_session
 from app.middleware.rbac import require_roles
 from app.schemas.auth import UserSchema
+from app.schemas.common import MessageSchema
 from app.schemas.students import (
+    BulkWarnSchema,
+    FoodBreakdownSchema,
+    ImprovementSchema,
     ImportResultSchema,
     MappingCreateSchema,
     MappingUpdateSchema,
+    MealPatternSchema,
     PaginatedStudents,
     StudentDetailSchema,
     StudentProfileUpdateSchema,
     StudentSchema,
+    TimelineSchema,
+    WasteStatsSchema,
 )
+from app.schemas.warnings import PenaltyCreateSchema, PenaltySchema, StudentWarningsSchema, WarningCreateSchema, WarningSchema
+from app.schemas.waste import PaginatedEntries
 
 router = APIRouter(prefix="/students", tags=["Students"])
 
@@ -96,6 +105,16 @@ async def import_mapping_csv(
     return await student_controller.import_mapping_csv(db, csv_file, current_user=current_user)
 
 
+@router.post("/bulk/warn", response_model=MessageSchema)
+async def bulk_warn(
+    body: BulkWarnSchema,
+    current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
+    db: AsyncSession = Depends(get_db_session),
+):
+    await student_controller.bulk_warn(db, body, current_user=current_user)
+    return MessageSchema(message="Warnings issued")
+
+
 @router.get("/{student_id}", response_model=StudentDetailSchema)
 async def get_student(
     student_id: UUID,
@@ -123,6 +142,95 @@ async def update_mapping(
     db: AsyncSession = Depends(get_db_session),
 ):
     return await student_controller.update_mapping(db, str(student_id), body, current_user=current_user)
+
+
+@router.get("/{student_id}/stats", response_model=WasteStatsSchema)
+async def get_student_stats(
+    student_id: UUID,
+    period: str = Query(default="30d"),
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_student_stats(db, str(student_id), period)
+
+
+@router.get("/{student_id}/timeline", response_model=TimelineSchema)
+async def get_student_timeline(
+    student_id: UUID,
+    period: str = Query(default="30d"),
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_student_timeline(db, str(student_id), period)
+
+
+@router.get("/{student_id}/food-breakdown", response_model=FoodBreakdownSchema)
+async def get_food_breakdown(
+    student_id: UUID,
+    period: str = Query(default="30d"),
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_food_breakdown(db, str(student_id), period)
+
+
+@router.get("/{student_id}/meal-pattern", response_model=MealPatternSchema)
+async def get_meal_pattern(
+    student_id: UUID,
+    period: str = Query(default="30d"),
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_meal_pattern(db, str(student_id), period)
+
+
+@router.get("/{student_id}/improvement", response_model=ImprovementSchema)
+async def get_improvement_trend(
+    student_id: UUID,
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_improvement_trend(db, str(student_id))
+
+
+@router.get("/{student_id}/history", response_model=PaginatedEntries)
+async def get_student_history(
+    student_id: UUID,
+    page: int = Query(default=1, ge=1),
+    size: int = Query(default=20, ge=1, le=100),
+    current_user: UserSchema = Depends(require_roles(*STUDENT_READ_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_student_history(db, str(student_id), page=page, size=size)
+
+
+@router.get("/{student_id}/warnings", response_model=StudentWarningsSchema)
+async def get_student_warnings(
+    student_id: UUID,
+    current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),  # noqa: ARG001
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.get_student_warnings(db, str(student_id))
+
+
+@router.post("/{student_id}/warnings", response_model=WarningSchema, status_code=201)
+async def create_warning(
+    student_id: UUID,
+    body: WarningCreateSchema,
+    current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.create_warning(db, str(student_id), body, current_user=current_user)
+
+
+@router.post("/{student_id}/penalties", response_model=PenaltySchema, status_code=201)
+async def create_penalty_direct(
+    student_id: UUID,
+    body: PenaltyCreateSchema,
+    current_user: UserSchema = Depends(require_roles(*STUDENT_WRITE_ROLES)),
+    db: AsyncSession = Depends(get_db_session),
+):
+    return await student_controller.create_penalty_direct(db, str(student_id), body, current_user=current_user)
 
 
 @router.patch("/{student_id}", response_model=StudentSchema)

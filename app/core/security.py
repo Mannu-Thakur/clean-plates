@@ -14,8 +14,6 @@ import asyncio
 import hashlib
 import secrets
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
-
 import bcrypt
 from jose import JWTError, jwt
 

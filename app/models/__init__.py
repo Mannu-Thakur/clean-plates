@@ -13,6 +13,9 @@ from app.models.audit import AuditEventModel
 from app.models.device import DeviceModel, DeviceHealthModel
 from app.models.student import StudentModel, StudentMappingModel
 from app.models.food import FoodItemModel
+from app.models.rule import RuleExecutionModel, RuleModel
+from app.models.warning import EscalationModel, PenaltyModel, WarningModel
+from app.models.waste import WasteEntryModel
 
 __all__ = [
     "Base",
@@ -26,4 +29,10 @@ __all__ = [
     "StudentModel",
     "StudentMappingModel",
     "FoodItemModel",
+    "RuleModel",
+    "RuleExecutionModel",
+    "WasteEntryModel",
+    "WarningModel",
+    "EscalationModel",
+    "PenaltyModel",
 ]

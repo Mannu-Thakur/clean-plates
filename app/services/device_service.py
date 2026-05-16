@@ -289,6 +289,28 @@ async def trigger_sync(
     )
 
 
+async def restart_service(
+    db: AsyncSession,
+    device_id: str,
+    *,
+    current_user: UserSchema | None = None,
+) -> None:
+    device = await _get_device_or_404(db, device_id)
+    if device.status == "decommissioned":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Cannot restart a decommissioned device")
+
+    await audit_service.log(
+        db,
+        event_type="device.restart_requested",
+        action="restart",
+        resource_type="device",
+        resource_id=device.id,
+        summary=f"Restart requested for device '{device.device_serial}'",
+        metadata={"delivery": "stubbed_until_phase_4"},
+        **_audit_user(current_user),
+    )
+
+
 async def decommission(
     db: AsyncSession,
     device_id: str,

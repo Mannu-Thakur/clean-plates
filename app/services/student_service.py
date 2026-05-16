@@ -10,7 +10,8 @@ import csv
 import io
 import math
 import zipfile
-from datetime import UTC, datetime
+from collections import defaultdict
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from xml.sax.saxutils import escape
 
@@ -21,17 +22,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.student import StudentMappingModel, StudentModel
+from app.models.waste import WasteEntryModel
 from app.schemas.auth import UserSchema
 from app.schemas.students import (
+    BulkWarnSchema,
+    FoodBreakdownItemSchema,
+    FoodBreakdownSchema,
+    ImprovementPointSchema,
+    ImprovementSchema,
     ImportResultSchema,
     MappingCreateSchema,
+    MappingImportRowSchema,
     MappingUpdateSchema,
+    MealPatternItemSchema,
+    MealPatternSchema,
     PaginatedStudents,
     StudentDetailSchema,
     StudentProfileUpdateSchema,
     StudentSchema,
+    TimelinePointSchema,
+    TimelineSchema,
+    WasteStatsSchema,
 )
+from app.schemas.warnings import PenaltyCreateSchema, PenaltySchema, StudentWarningsSchema, WarningCreateSchema, WarningSchema
+from app.schemas.waste import PaginatedEntries
 from app.services import audit_service
+from app.services import config_service
 
 
 _CARD_CONFLICT_MESSAGE = (
@@ -92,6 +108,82 @@ def _student_schema(student: StudentModel) -> StudentSchema:
 
 def _student_detail_schema(student: StudentModel) -> StudentDetailSchema:
     return StudentDetailSchema.model_validate(student)
+
+
+def _period_date_range(period: str) -> tuple[str, date | None, date | None]:
+    today = _utcnow().date()
+    normalized = (period or "30d").strip().lower()
+    if normalized == "today":
+        return normalized, today, today
+    if normalized == "yesterday":
+        yesterday = today - timedelta(days=1)
+        return normalized, yesterday, yesterday
+    if normalized == "7d":
+        return normalized, today - timedelta(days=6), today
+    if normalized == "30d":
+        return normalized, today - timedelta(days=29), today
+    if normalized == "semester":
+        return normalized, today - timedelta(days=180), today
+    if normalized == "all":
+        return normalized, None, None
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="period must be one of today, yesterday, 7d, 30d, semester, all",
+    )
+
+
+def _entry_in_range(entry: WasteEntryModel, start_date: date | None, end_date: date | None) -> bool:
+    if start_date and entry.session_date < start_date:
+        return False
+    if end_date and entry.session_date > end_date:
+        return False
+    return True
+
+
+async def _student_entries_for_period(
+    db: AsyncSession,
+    student_id: str,
+    period: str,
+) -> tuple[str, date | None, date | None, list[WasteEntryModel]]:
+    normalized, start_date, end_date = _period_date_range(period)
+    stmt = select(WasteEntryModel).where(WasteEntryModel.student_id == student_id)
+    if start_date:
+        stmt = stmt.where(WasteEntryModel.session_date >= start_date)
+    if end_date:
+        stmt = stmt.where(WasteEntryModel.session_date <= end_date)
+    stmt = stmt.order_by(WasteEntryModel.session_date.asc(), WasteEntryModel.timestamp.asc())
+    result = await db.execute(stmt)
+    return normalized, start_date, end_date, list(result.scalars().all())
+
+
+def _food_totals(entries: list[WasteEntryModel]) -> dict[str, float]:
+    totals: dict[str, float] = defaultdict(float)
+    for entry in entries:
+        items = entry.food_items or []
+        if not items:
+            continue
+        for item in items:
+            name = str(item.get("name") or "").strip()
+            if not name:
+                continue
+            grams = item.get("grams")
+            totals[name] += float(grams if grams is not None else 0.0)
+    return dict(totals)
+
+
+def _meal_totals(entries: list[WasteEntryModel]) -> dict[str, tuple[float, int]]:
+    totals: dict[str, list[float | int]] = defaultdict(lambda: [0.0, 0])
+    for entry in entries:
+        bucket = totals[entry.meal_type]
+        bucket[0] = float(bucket[0]) + float(entry.weight_grams)
+        bucket[1] = int(bucket[1]) + 1
+    return {meal: (float(total), int(count)) for meal, (total, count) in totals.items()}
+
+
+def _improvement_pct(previous_avg: float, current_avg: float) -> float | None:
+    if previous_avg <= 0:
+        return None
+    return round(((previous_avg - current_avg) / previous_avg) * 100.0, 2)
 
 
 async def _get_student_or_404(db: AsyncSession, student_id: str) -> StudentModel:
@@ -230,27 +322,22 @@ async def map_student_id(
     current_user: UserSchema,
 ) -> StudentSchema:
     student = await _get_student_or_404(db, student_id)
-    if body.device_id != student.device_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Mapping device_id must match the student's card ID",
-        )
-
-    await _ensure_card_not_mapped_to_other(db, body.device_id, student.id)
+    await _ensure_card_not_mapped_to_other(db, student.device_id, student.id)
     mapping = await _get_mapping_by_student_id(db, student.id)
     before = _mapping_state(mapping)
 
     if mapping is None:
         mapping = StudentMappingModel(
             student_id=student.id,
-            device_id=body.device_id,
+            device_id=student.device_id,
             mapped_by=current_user.id,
-            **body.model_dump(exclude={"device_id"}),
+            **body.model_dump(),
         )
         db.add(mapping)
     else:
         for field, value in body.model_dump().items():
             setattr(mapping, field, value)
+        mapping.device_id = student.device_id
         mapping.mapped_by = current_user.id
 
     await db.flush()
@@ -415,7 +502,7 @@ async def import_mapping_csv(
         device_id_for_error = payload.get("device_id")
 
         try:
-            mapping_data = MappingCreateSchema.model_validate(payload)
+            mapping_data = MappingImportRowSchema.model_validate(payload)
             if mapping_data.device_id in seen_device_ids:
                 raise ValueError("Duplicate device_id in CSV file")
             seen_device_ids.add(mapping_data.device_id)
@@ -691,3 +778,208 @@ async def export_students(
         )
 
     raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="format must be 'csv' or 'excel'")
+
+
+async def bulk_warn(
+    db: AsyncSession,
+    body: BulkWarnSchema,
+    *,
+    current_user: UserSchema,
+) -> None:
+    from app.services import warning_service
+
+    for student_id in body.student_ids:
+        await warning_service.create_warning(
+            db,
+            str(student_id),
+            WarningCreateSchema(level=body.level, reason=body.reason, send_email=body.send_email),
+            current_user=current_user,
+        )
+
+
+async def get_student_stats(db: AsyncSession, student_id: str, period: str = "30d") -> WasteStatsSchema:
+    student = await _get_student_or_404(db, student_id)
+    normalized, start_date, end_date, entries = await _student_entries_for_period(db, student_id, period)
+    total = sum(float(entry.weight_grams) for entry in entries)
+    count = len(entries)
+    avg = total / count if count else 0.0
+
+    food_totals = _food_totals(entries)
+    most_wasted_food = max(food_totals.items(), key=lambda item: item[1])[0] if food_totals else None
+    meal_totals = _meal_totals(entries)
+    peak_meal = max(meal_totals.items(), key=lambda item: item[1][0])[0] if meal_totals else None
+
+    improvement = None
+    if start_date and end_date:
+        window_days = (end_date - start_date).days + 1
+        previous_start = start_date - timedelta(days=window_days)
+        previous_end = start_date - timedelta(days=1)
+        previous_result = await db.execute(
+            select(func.avg(WasteEntryModel.weight_grams)).where(
+                WasteEntryModel.student_id == student_id,
+                WasteEntryModel.session_date >= previous_start,
+                WasteEntryModel.session_date <= previous_end,
+            )
+        )
+        previous_avg = float(previous_result.scalar_one() or 0.0)
+        improvement = _improvement_pct(previous_avg, avg)
+
+    return WasteStatsSchema(
+        student_id=student_id,
+        period=normalized,
+        total_waste_grams=round(total, 2),
+        avg_waste_grams=round(avg, 2),
+        entry_count=count,
+        most_wasted_food=most_wasted_food,
+        peak_meal=peak_meal,
+        sustainability_score=student.sustainability_score,
+        improvement_pct=improvement,
+    )
+
+
+async def get_student_timeline(db: AsyncSession, student_id: str, period: str = "30d") -> TimelineSchema:
+    await _get_student_or_404(db, student_id)
+    normalized, _, _, entries = await _student_entries_for_period(db, student_id, period)
+    totals: dict[date, list[float | int]] = defaultdict(lambda: [0.0, 0])
+    for entry in entries:
+        bucket = totals[entry.session_date]
+        bucket[0] = float(bucket[0]) + float(entry.weight_grams)
+        bucket[1] = int(bucket[1]) + 1
+
+    thresholds = await config_service.get_config(db, "thresholds")
+    threshold_grams = float(thresholds.get("warning_threshold_grams") or 100.0)
+    return TimelineSchema(
+        student_id=student_id,
+        period=normalized,
+        threshold_grams=threshold_grams,
+        data=[
+            TimelinePointSchema(date=day, total_grams=round(float(total), 2), entry_count=int(count))
+            for day, (total, count) in sorted(totals.items(), key=lambda item: item[0])
+        ],
+    )
+
+
+async def get_food_breakdown(db: AsyncSession, student_id: str, period: str = "30d") -> FoodBreakdownSchema:
+    await _get_student_or_404(db, student_id)
+    _, _, _, entries = await _student_entries_for_period(db, student_id, period)
+    totals = _food_totals(entries)
+    total_food_grams = sum(totals.values())
+    items = [
+        FoodBreakdownItemSchema(
+            food_name=name,
+            total_grams=round(grams, 2),
+            percentage=round((grams / total_food_grams) * 100.0, 2) if total_food_grams else 0.0,
+        )
+        for name, grams in sorted(totals.items(), key=lambda item: item[1], reverse=True)
+    ]
+    return FoodBreakdownSchema(student_id=student_id, data=items)
+
+
+async def get_meal_pattern(db: AsyncSession, student_id: str, period: str = "30d") -> MealPatternSchema:
+    await _get_student_or_404(db, student_id)
+    _, _, _, entries = await _student_entries_for_period(db, student_id, period)
+    meal_totals = _meal_totals(entries)
+    return MealPatternSchema(
+        student_id=student_id,
+        data=[
+            MealPatternItemSchema(
+                meal_type=meal,
+                avg_grams=round(total / count, 2) if count else 0.0,
+                entry_count=count,
+            )
+            for meal, (total, count) in sorted(meal_totals.items(), key=lambda item: item[0])
+        ],
+    )
+
+
+async def get_improvement_trend(db: AsyncSession, student_id: str) -> ImprovementSchema:
+    await _get_student_or_404(db, student_id)
+    today = _utcnow().date()
+    start = today - timedelta(days=55)
+    result = await db.execute(
+        select(WasteEntryModel).where(
+            WasteEntryModel.student_id == student_id,
+            WasteEntryModel.session_date >= start,
+            WasteEntryModel.session_date <= today,
+        )
+    )
+    entries = list(result.scalars().all())
+
+    buckets: list[tuple[date, date]] = []
+    for offset in range(7, -1, -1):
+        week_end = today - timedelta(days=offset * 7)
+        week_start = week_end - timedelta(days=6)
+        buckets.append((week_start, week_end))
+
+    points: list[ImprovementPointSchema] = []
+    previous_avg = 0.0
+    for week_start, week_end in buckets:
+        week_entries = [entry for entry in entries if _entry_in_range(entry, week_start, week_end)]
+        avg = sum(float(entry.weight_grams) for entry in week_entries) / len(week_entries) if week_entries else 0.0
+        improvement = _improvement_pct(previous_avg, avg) if previous_avg else 0.0
+        points.append(
+            ImprovementPointSchema(
+                week_label=f"{week_start.isoformat()} to {week_end.isoformat()}",
+                avg_grams=round(avg, 2),
+                improvement_pct=round(improvement or 0.0, 2),
+            )
+        )
+        previous_avg = avg
+
+    current_improvement = points[-1].improvement_pct if points else 0.0
+    if current_improvement > 5:
+        direction = "improving"
+    elif current_improvement < -5:
+        direction = "worsening"
+    else:
+        direction = "stable"
+
+    return ImprovementSchema(
+        student_id=student_id,
+        current_improvement_pct=current_improvement,
+        direction=direction,
+        data=points,
+    )
+
+
+async def get_student_history(
+    db: AsyncSession,
+    student_id: str,
+    *,
+    page: int = 1,
+    size: int = 20,
+) -> PaginatedEntries:
+    from app.services import waste_service
+
+    await _get_student_or_404(db, student_id)
+    return await waste_service.list_entries(db, student_id=student_id, page=page, size=size)
+
+
+async def get_student_warnings(db: AsyncSession, student_id: str) -> StudentWarningsSchema:
+    from app.services import warning_service
+
+    return await warning_service.get_student_warnings(db, student_id)
+
+
+async def create_warning(
+    db: AsyncSession,
+    student_id: str,
+    body: WarningCreateSchema,
+    *,
+    current_user: UserSchema,
+) -> WarningSchema:
+    from app.services import warning_service
+
+    return await warning_service.create_warning(db, student_id, body, current_user=current_user)
+
+
+async def create_penalty_direct(
+    db: AsyncSession,
+    student_id: str,
+    body: PenaltyCreateSchema,
+    *,
+    current_user: UserSchema,
+) -> PenaltySchema:
+    from app.services import warning_service
+
+    return await warning_service.create_penalty_direct(db, student_id, body, current_user=current_user)

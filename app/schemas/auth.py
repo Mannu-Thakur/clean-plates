@@ -7,8 +7,6 @@ Ref: 05-schemas.md §1
 from __future__ import annotations
 
 from datetime import datetime
-from uuid import UUID
-
 from pydantic import BaseModel, ConfigDict, EmailStr
 
 

@@ -10,11 +10,10 @@ Implements per-route limits defined in 04-middlewares.md §5.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-from starlette.types import ASGIApp, Message, Receive, Scope, Send
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 logger = logging.getLogger("cleanplates.ratelimit")
 
@@ -24,6 +23,7 @@ _ROUTE_LIMITS: list[tuple[str, str | None, int, int]] = [
     ("/api/v1/auth/login", "POST", 10, 60),
     ("/api/v1/auth/forgot-password", "POST", 5, 300),
     ("/api/v1/reports/generate", "POST", 5, 300),
+    ("/api/v1/ml/upload-image", "POST", 10000, 60),
     ("/api/v1/ml/", None, 1000, 60),  # all ML routes
 ]
 _DEFAULT_LIMIT = (200, 60)  # 200 req / 60s for general API
