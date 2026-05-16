@@ -149,7 +149,7 @@ async def test_phase3_waste_ingestion_student_stats_and_warning_lifecycle(db_ses
     )
     await db_session.refresh(student)
     assert student.penalty_count == 0
-    assert student.status == "green"
+    assert student.status == "yellow"
 
     direct_penalty = await warning_service.create_penalty_direct(
         db_session,

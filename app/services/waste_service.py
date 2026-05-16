@@ -192,7 +192,6 @@ async def _refresh_student_waste_metrics(db: AsyncSession, student_id: str) -> N
     if student is not None:
         student.total_waste_grams = float(total)
         student.avg_waste_grams = avg
-        student.sustainability_score = max(0.0, min(100.0, 100.0 - (avg / 3.0)))
 
 
 def _food_item_dicts(body: WasteEntryCreateSchema) -> list[dict]:

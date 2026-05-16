@@ -16,6 +16,8 @@ from app.models.food import FoodItemModel
 from app.models.rule import RuleExecutionModel, RuleModel
 from app.models.warning import EscalationModel, PenaltyModel, WarningModel
 from app.models.waste import WasteEntryModel
+from app.models.aggregated_waste import AggregatedWasteModel
+from app.models.filter_preset import FilterPresetModel
 
 __all__ = [
     "Base",
@@ -35,4 +37,6 @@ __all__ = [
     "WarningModel",
     "EscalationModel",
     "PenaltyModel",
+    "AggregatedWasteModel",
+    "FilterPresetModel",
 ]

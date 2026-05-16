@@ -230,32 +230,9 @@ async def _decrement_penalty_count(db: AsyncSession, student_id: str) -> None:
 
 
 async def _refresh_student_status(db: AsyncSession, student_id: str) -> None:
-    student = await db.get(StudentModel, student_id)
-    if student is None or student.is_status_manual:
-        return
+    from app.services import aggregation_service
 
-    penalty_result = await db.execute(
-        select(func.count(PenaltyModel.id)).where(
-            PenaltyModel.student_id == student_id, PenaltyModel.status == "active"
-        )
-    )
-    warning_result = await db.execute(
-        select(func.count(WarningModel.id)).where(
-            WarningModel.student_id == student_id,
-            WarningModel.status.in_(_UNRESOLVED_WARNING_STATUSES),
-        )
-    )
-    active_penalties = int(penalty_result.scalar_one() or 0)
-    unresolved_warnings = int(warning_result.scalar_one() or 0)
-
-    if active_penalties:
-        student.status = "red"
-    elif unresolved_warnings >= 3:
-        student.status = "orange"
-    elif unresolved_warnings:
-        student.status = "yellow"
-    else:
-        student.status = "green"
+    await aggregation_service.update_student_status(db, student_id)
 
 
 def _apply_warning_filters(
@@ -460,6 +437,7 @@ async def escalate_warning(
     db.add(escalation)
     warning.status = "escalated"
     await db.flush()
+    await _refresh_student_status(db, warning.student_id)
 
     await audit_service.log(
         db,

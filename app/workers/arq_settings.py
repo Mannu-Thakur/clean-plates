@@ -5,10 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from arq import cron
 from arq.connections import RedisSettings
 
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal, engine
+from app.workers.aggregation_worker import (
+    check_device_offline_status,
+    compute_sustainability_scores,
+    run_daily_aggregation,
+    run_hourly_aggregation,
+)
 from app.workers.rule_worker import evaluate_event
 
 
@@ -44,7 +51,19 @@ async def on_shutdown(ctx: dict[str, Any]) -> None:  # noqa: ARG001
 
 
 class WorkerSettings:
-    functions = [evaluate_event]
+    functions = [
+        evaluate_event,
+        run_hourly_aggregation,
+        run_daily_aggregation,
+        compute_sustainability_scores,
+        check_device_offline_status,
+    ]
+    cron_jobs = [
+        cron(run_hourly_aggregation, minute={0, 30}),
+        cron(run_daily_aggregation, minute={0, 30}),
+        cron(compute_sustainability_scores, minute={0, 15, 30, 45}),
+        cron(check_device_offline_status, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
+    ]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     on_startup = on_startup
     on_shutdown = on_shutdown
