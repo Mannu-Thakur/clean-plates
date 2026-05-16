@@ -58,7 +58,7 @@
 | GET | `/{student_id}/warnings` | SA, IA, MA | `get_student_warnings` | All warnings and penalties |
 | POST | `/{student_id}/warnings` | SA, IA, MA | `create_warning` | Manually issue a warning |
 | POST | `/{student_id}/penalties` | SA, IA, MA | `create_penalty_direct` | Manually apply a penalty directly (no source warning) |
-| PATCH | `/{student_id}` | SA, IA, MA | `update_student_profile` | Update student profile (hostel, room, etc.) |
+| PATCH | `/{student_id}` | SA, IA, MA | `update_student_profile` | Update student active status (`is_active` only — **[F4-fix]** hostel/room/name/email are on `StudentMappingModel`, use `PATCH /{student_id}/map` instead) |
 
 ---
 
@@ -82,6 +82,7 @@
 | POST | `/detect` | API_KEY | `ingest_detection` | Single plate detection event |
 | POST | `/sync` | API_KEY | `bulk_ingest` | Bulk offline sync of entries |
 | POST | `/heartbeat` | API_KEY | `ml_heartbeat` | ML pipeline health + metrics push |
+| POST | `/upload-image` | API_KEY | `upload_image` | Upload plate image (multipart/form-data), returns filename for use in `/detect` |
 
 ---
 
@@ -90,9 +91,9 @@
 
 | Method | Path | Roles | Controller Function | Description |
 |--------|------|-------|---------------------|-------------|
-| GET | `/` | SA, IA, MA | `list_warnings` | Filtered paginated warnings list |
+| GET | `/` | SA, IA, MA | `list_warnings` | Filtered paginated warnings list — query params: `status`, `level` (`level_1`/`level_2`/`level_3`), `student_id`, `date_from`, `date_to`, `page`, `size` |
 | GET | `/stats` | SA, IA, MA | `get_warning_stats` | Summary counts for cards |
-| GET | `/export` | SA, IA, MA | `export_warnings` | Download warnings as CSV |
+| GET | `/export` | SA, IA, MA | `export_warnings` | Download warnings as CSV/Excel — **query params:** `format=csv\|excel` (required), plus same filter params as `list_warnings` (`status`, `student_id`, `date_from`, `date_to`). Do NOT use request body on this GET endpoint. |
 | PATCH | `/{warning_id}/resolve` | SA, IA, MA | `resolve_warning` | Resolve a warning |
 | POST | `/{warning_id}/escalate` | SA, IA, MA | `escalate_warning` | Escalate warning |
 | POST | `/{warning_id}/apply-penalty` | SA, IA | `apply_penalty` | Convert warning to penalty |
@@ -179,6 +180,7 @@
 | POST | `/mark-all-read` | SA, IA, MA | `mark_all_read` | Mark all as read |
 | DELETE | `/{notif_id}` | SA, IA, MA | `delete_notification` | Delete notification |
 | POST | `/{notif_id}/retry` | SA, IA, MA | `retry_failed` | Retry failed delivery |
+| GET | `/{notif_id}/delivery` | SA, IA, MA | `get_delivery_status` | **[M5-audit-fix]** Per-recipient delivery tracking info (timestamps, errors, channel status). Required by frontend spec `09-notifications.md`. |
 
 ---
 
@@ -266,7 +268,7 @@
 
 | Method | Path | Roles | Controller Function | Description |
 |--------|------|-------|---------------------|-------------|
-| GET | `/` | SA, IA | `list_events` | Filtered paginated audit log |
+| GET | `/` | SA, IA | `list_events` | Filtered paginated audit log — **[M6-audit-fix]** query params include: `user_id`, `event_type` (e.g., `config.updated`, `rule.created`), `resource_type` (e.g., `config`, `rules`, `students`), `date_from`, `date_to`, `q` (full-text search), `sort`, `page`, `size` |
 | GET | `/stats` | SA, IA | `get_stats` | Stats bar counts |
 | GET | `/timeline` | SA, IA | `get_timeline` | Timeline grouped by user |
 | GET | `/export` | SA, IA | `export_log` | CSV export |

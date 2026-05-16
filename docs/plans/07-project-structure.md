@@ -12,13 +12,14 @@ backend/
 ├── .env                               # Environment variables (gitignored)
 ├── .env.example                       # Template for .env
 ├── alembic.ini                        # Alembic config
-├── Dockerfile                         # ARM64-compatible multi-stage
+├── Dockerfile                         # ARM64-compatible multi-stage. **[M4-audit-fix]** Must include `apt-get install -y libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info` for WeasyPrint PDF generation.
+├── entrypoint.sh                      # Docker entrypoint script (handles staged DB restore). **[H2-audit-fix]** Must execute `rm -f database.db-wal database.db-shm` alongside `mv staging_restore.db database.db` to prevent WAL corruption.
 │
 ├── alembic/
 │   ├── env.py                         # Async alembic env
 │   └── versions/
-│       ├── 001_initial_users.py       # Phase 1: users, refresh_tokens, roles, system_config
-│       ├── 002_devices_students.py    # Phase 2: devices, device_health, students, student_mappings, food_items, audit_events
+│       ├── 001_initial_users.py       # Phase 1: users, refresh_tokens, roles, system_config, audit_events — **[F1-fix]** audit_events moved here from 002 (audit_service.log() is used from Phase 1)
+│       ├── 002_devices_students.py    # Phase 2: devices, device_health, students, student_mappings, food_items
 │       ├── 003_waste_warnings_rules.py # Phase 3: waste_entries, warnings, escalations, penalties, rules, rule_executions
 │       ├── 004_analytics.py           # Phase 5: aggregated_waste, filter_presets (Phase 4 adds no new models)
 │       └── 005_notif_config_reports.py # Phase 6: notifications, email_templates, reports, report_schedules, backups
@@ -35,6 +36,7 @@ backend/
 │   ├── core/
 │   │   ├── config.py                  # Pydantic Settings class
 │   │   ├── database.py                # Async SQLAlchemy engine + AsyncSessionLocal (get_db_session lives in app/middleware/db.py)
+│   │   ├── redis.py                   # ARQ pool init + get_arq_pool() dependency (C1-fix: required by waste_service and warning_service for enqueue_job calls)
 │   │   └── security.py                # hash_password, verify_password, create/decode tokens
 │   │
 │   ├── middleware/
@@ -292,7 +294,7 @@ frontend/
 
 ```
 docker-compose.yml
-├── fastapi          → Dockerfile, port 8000, mounts: ./uploads, ./reports, ./backups, ./data
+├── fastapi          → Dockerfile, port 8000, mounts: ./uploads, ./reports, ./backups, ./data, ./logs
 ├── arq-worker       → Same image as fastapi, command: arq app.workers.arq_settings.WorkerSettings
 ├── redis            → redis:7-alpine, port 6379, volume: redis-data
 └── nginx            → nginx:alpine, ports 80/443, mounts: ./nginx.conf, frontend/build
@@ -303,4 +305,5 @@ volumes:
   uploads            → /uploads/
   reports            → /reports/
   backups            → /backups/
+  logs               → /logs/ — **[F9-fix]** Required for file-based log retention (LOG_RETENTION_DAYS setting)
 ```

@@ -34,7 +34,7 @@
 |---------|----|--------|
 | Status Filter | `select-filter-status` | Filter by Green/Yellow/Orange/Red |
 | Hostel Filter | `select-filter-hostel` | Filter by hostel (available after mapping) |
-| Map Student ID | `btn-map-{deviceId}` | Open mapping modal to assign name/roll/year/branch |
+| Map Student ID | `btn-map-{deviceId}` | Open mapping modal to assign name/roll/year/branch — **[M7-audit-fix]** API call uses student `id` (UUID), not `deviceId` |
 | Import CSV | `btn-import-csv` | Bulk import student mappings from CSV |
 | Export List | `btn-export-students` | Export filtered list as CSV/Excel |
 | Select All | `chk-select-all` | Toggle select all visible rows |
@@ -153,7 +153,7 @@ classDiagram
     class StudentsApiClient {
         +getStudents(params) PaginatedStudents
         +getStudent(id) Student
-        +mapStudent(deviceId, data) Student
+        +mapStudent(studentId, data) Student
         +importMappingCsv(file) ImportResult
         +exportStudents(format, filters) Blob
         +bulkWarn(studentIds) void
@@ -267,8 +267,8 @@ stateDiagram-v2
 | 3 | **Filter by Hostel** | Selects hostel (mapped students only) | `StudentFilterPanel.apply()` | `GET /api/v1/students?hostel=A` | `StudentService.listStudents()` | Table shows students from selected hostel |
 | 4 | **Sort Column** | Clicks column header | `StudentTable.onSort()` | `GET /api/v1/students?sort=warnings&order=desc` | `StudentService.listStudents()` | Column sorts asc/desc with arrow indicator |
 | 5 | **Pagination** | Clicks page number | `PaginationControl.goToPage()` | `GET /api/v1/students?page=3` | `StudentService.listStudents()` | Table loads next page of students |
-| 6 | **Map Student ID** | Clicks Map button on a row | `MapStudentModal.submit()` | `POST /api/v1/students/{deviceId}/map` | `StudentService.mapStudentId()` | Device ID gets name/roll/year/branch assigned; row updates to show mapped identity |
-| 7 | **Edit Mapping** | Clicks Edit Mapping on mapped row | `MapStudentModal` pre-filled | `PATCH /api/v1/students/{deviceId}/map` | `StudentService.mapStudentId()` | Existing mapping updated in DB |
+| 6 | **Map Student ID** | Clicks Map button on a row | `MapStudentModal.submit()` | `POST /api/v1/students/{id}/map` | `StudentService.mapStudentId()` | Device ID gets name/roll/year/branch assigned; row updates to show mapped identity — **[M7-audit-fix]** URL path uses student UUID (`student.id`), NOT `device_id` |
+| 7 | **Edit Mapping** | Clicks Edit Mapping on mapped row | `MapStudentModal` pre-filled | `PATCH /api/v1/students/{id}/map` | `StudentService.mapStudentId()` | Existing mapping updated in DB — **[M7-audit-fix]** URL path uses student UUID |
 | 8 | **Import Mapping CSV** | Uploads CSV with device_id,name,roll,year,branch | `ImportCsvModal.upload()` | `POST /api/v1/students/import-mapping` | `StudentService.importMappingFromCsv()` | Preview shows parsed rows; confirm to bulk-map all device IDs |
 | 9 | **Export List** | Clicks export button | `StudentsStore.exportList()` | `GET /api/v1/students/export?format=csv` | `StudentService.exportStudents()` | CSV/Excel file downloads with all mapped/unmapped records |
 | 10 | **Select Rows** | Checks checkboxes | `StudentTable.onSelect()` | — | — | Bulk actions bar appears at bottom |

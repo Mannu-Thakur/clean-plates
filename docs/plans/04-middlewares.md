@@ -40,7 +40,8 @@
 
 ## 3. RequestLoggingMiddleware
 **File:** `app/middleware/logging.py`  
-**Type:** Starlette `BaseHTTPMiddleware`
+**Type:** Starlette `BaseHTTPMiddleware`  
+**⚠ G2-fix (WebSocket Bypass):** `BaseHTTPMiddleware` breaks WebSocket connections. This middleware MUST check `if scope["type"] == "websocket": return await self.app(scope, receive, send)` at the top of `__call__` to bypass WS paths. Alternatively, rewrite as a pure ASGI middleware class.
 
 **Logic:**
 1. Log incoming request: `method`, `path`, `user_agent`, `ip`, `user_id` (if authenticated)
@@ -67,7 +68,8 @@
 ## 5. RateLimitMiddleware
 **File:** `app/middleware/rate_limit.py`  
 **Type:** Starlette `BaseHTTPMiddleware`  
-**Backend:** Redis `INCR` + `EXPIRE`
+**Backend:** Redis `INCR` + `EXPIRE`  
+**⚠ G2-fix (WebSocket Bypass):** Must bypass WebSocket connections (`scope["type"] == "websocket"`) — same pattern as `RequestLoggingMiddleware`.
 
 **Limits:**
 
@@ -76,7 +78,7 @@
 | `POST /auth/login` | 10 requests | 1 minute | IP address |
 | `POST /auth/forgot-password` | 5 requests | 5 minutes | IP address |
 | `/api/v1/*` (general) | 200 requests | 1 minute | `user_id` or IP |
-| `/ml/*` (ML ingestion) | 1000 requests | 1 minute | `device_id` (API key) |
+| `/ml/*` (ML ingestion) | 1000 requests | 1 minute | `device_id` (API key) — **⚠ H5-audit-fix (Offline Recovery):** `POST /ml/upload-image` must be **exempt** from this limit or given a significantly higher limit (e.g., 10,000 requests/minute). If an edge device has been offline for several days, it may queue thousands of plate images locally. Uploading these sequentially when connection is restored will trigger `429 Too Many Requests`, halting offline data recovery. Alternative: provide a bulk-image-upload route (ZIP extraction) to process recovery queues efficiently. |
 | `POST /reports/generate` | 5 requests | 5 minutes | `user_id` |
 
 **On limit exceeded:** Return `429 Too Many Requests` with `Retry-After` header
@@ -138,7 +140,8 @@ All 5xx errors are logged with full traceback to structured log.
 
 ## 10. SecurityHeadersMiddleware
 **File:** `app/middleware/security_headers.py`  
-**Type:** Starlette `BaseHTTPMiddleware`
+**Type:** Starlette `BaseHTTPMiddleware`  
+**⚠ G2-fix (WebSocket Bypass):** Must bypass WebSocket connections (`scope["type"] == "websocket"`) — same pattern as `RequestLoggingMiddleware`.
 
 **Headers added to every response:**
 
@@ -229,12 +232,15 @@ class Settings(BaseSettings):
     MAX_LOGIN_ATTEMPTS: int = 5
     LOCKOUT_DURATION_MINUTES: int = 15
     
-    # Email
-    SMTP_HOST: str
+    # Email — **[L4-fix]** Optional with defaults until Phase 6 (EmailService).
+    # App will NOT crash on startup if these are missing from .env.
+    # EmailService (Phase 6) must validate these are non-empty before sending.
+    EMAIL_ENABLED: bool = False           # Set True in .env when SMTP is configured (Phase 6+)
+    SMTP_HOST: str = ""                   # Required when EMAIL_ENABLED=True
     SMTP_PORT: int = 587
-    SMTP_USER: str
-    SMTP_PASSWORD: str
-    EMAIL_FROM: str
+    SMTP_USER: str = ""                   # Required when EMAIL_ENABLED=True
+    SMTP_PASSWORD: str = ""               # Required when EMAIL_ENABLED=True
+    EMAIL_FROM: str = "noreply@cleanplates.local"
     
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]

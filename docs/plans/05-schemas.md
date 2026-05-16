@@ -8,6 +8,8 @@
 > ```
 > Required for SQLAlchemy ORM → Pydantic v2 serialization (`model_validate(orm_obj)`). Without it, all ORM reads will raise `PydanticUserError`. Import via `from pydantic import ConfigDict`.
 
+> **⚠ [F5-fix] IMPLEMENTATION NOTE:** The code blocks below show `model_config` explicitly only on `UserSchema` (§1) as a reference example. **ALL response schemas** (`DeviceSchema`, `StudentSchema`, `WasteEntrySchema`, `WarningSchema`, `EscalationSchema`, `PenaltySchema`, `RuleSchema`, `RuleExecutionSchema`, `NotificationSchema`, `ReportSchema`, `ReportScheduleSchema`, `AuditEventSchema`, `FilterPresetSchema`, `EmailTemplateSchema`, `BackupSchema`, `RoleSchema`, `DeviceStatusSchema`, `HealthDataSchema`, `StudentMappingSchema`, etc.) must include it in the actual implementation. See also `06-phase-wise-plan.md` Cross-Cutting Rule #16.
+
 ---
 
 ## 1. Auth Schemas
@@ -36,6 +38,7 @@ class ResetPasswordSchema(BaseModel):
     new_password: str        # min 8 chars validated
 
 class UserSchema(BaseModel):
+    model_config = ConfigDict(from_attributes=True)  # M5-fix: required for ORM → Pydantic v2 serialization
     id: UUID
     email: str
     name: str
@@ -78,7 +81,9 @@ class DeviceUpdateSchema(BaseModel):         # All optional
     hostel_block: str | None = None
     floor_number: int | None = None
     capacity: int | None = None
-    status: str | None = None
+    # L4-fix: `status` removed — device status is system-managed (heartbeat → online/offline;
+    # use POST /devices/{id}/decommission for decommissioned status).
+    # Allowing free-form PATCH of status causes data inconsistency.
 
 class DeviceSchema(BaseModel):               # Response
     id: UUID
@@ -117,6 +122,11 @@ class HealthHistorySchema(BaseModel):
     device_id: UUID
     period: str
     data: list[HealthDataSchema]
+
+class QueuedSyncSchema(BaseModel):           # H4-fix: return type for POST /devices/{id}/sync
+    message: str                             # "Device queued for sync"
+    pending_count: int                       # Offline entries awaiting upload
+    device_id: UUID
 
 class DeviceStatusSchema(BaseModel):
     id: UUID
@@ -170,6 +180,7 @@ class StudentSchema(BaseModel):
     id: UUID
     device_id: str
     status: str
+    is_status_manual: bool           # [H4-audit-fix] True if status was set by rule engine classify_student or admin
     sustainability_score: float
     warning_count: int
     penalty_count: int
@@ -180,6 +191,11 @@ class StudentSchema(BaseModel):
 
 class StudentDetailSchema(StudentSchema):
     total_waste_grams: float
+
+class StudentProfileUpdateSchema(BaseModel):  # M6-fix: for PATCH /students/{student_id}
+    is_active: bool | None = None             # Only mutable StudentModel field
+    # NOTE: hostel, room_number, name, email, etc. are on StudentMappingModel.
+    #       Use PATCH /students/{student_id}/map (MappingUpdateSchema) for those.
 
 class PaginatedStudents(PaginatedBase):
     items: list[StudentSchema]
@@ -346,7 +362,7 @@ class EscalationSchema(BaseModel):
     student_id: UUID
     reason: str
     escalated_to_role: str
-    escalated_by: UUID
+    escalated_by: UUID | None    # [F3-fix] NULLABLE — matches G6-fix in 01-models.md (None when auto-escalated by rule engine)
     status: str
     reviewed_by: UUID | None
     review_note: str | None
@@ -430,6 +446,7 @@ class RuleCreateSchema(BaseModel):
     scope: ScopeSchema = ScopeSchema()
     actions: list[ActionSchema]
     chain_to_rule_id: UUID | None = None
+    # ⚠ L2-audit-fix: Requires @model_validator to reject contradictory actions (e.g., two `classify_student` with different statuses)
 
 class RuleUpdateSchema(BaseModel):         # All optional
     name: str | None = None
@@ -441,6 +458,7 @@ class RuleUpdateSchema(BaseModel):         # All optional
     scope: ScopeSchema | None = None
     actions: list[ActionSchema] | None = None
     chain_to_rule_id: UUID | None = None
+    # ⚠ L2-audit-fix: Requires @model_validator to reject contradictory actions if actions are updated
 
 class RuleSchema(BaseModel):
     id: UUID
@@ -692,6 +710,22 @@ class NotificationDetailSchema(NotificationSchema):
 
 class PaginatedNotifications(PaginatedBase):
     items: list[NotificationSchema]
+
+class DeliveryStatusItemSchema(BaseModel):   # [M5-audit-fix] Per-recipient delivery tracking
+    recipient_id: str
+    recipient_email: str | None
+    channel: str                             # email, dashboard
+    status: str                              # delivered, failed, pending
+    delivered_at: datetime | None
+    error: str | None
+
+class DeliveryStatusSchema(BaseModel):       # [M5-audit-fix] Response for GET /notifications/{id}/delivery
+    notification_id: UUID
+    total_recipients: int
+    delivered: int
+    failed: int
+    pending: int
+    deliveries: list[DeliveryStatusItemSchema]
 ```
 
 ---

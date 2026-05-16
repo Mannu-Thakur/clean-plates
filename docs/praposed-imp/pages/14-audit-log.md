@@ -263,7 +263,7 @@ stateDiagram-v2
 | 2 | **Load Stats** | Page mount | `AuditStore.fetchStats()` | `GET /api/v1/audit/stats` | `AuditService.getStats()` | Stats bar: today's total, logins, config changes, etc. |
 | 3 | **Filter by User** | Selects user dropdown | `AuditFilterBar.apply()` | `GET /api/v1/audit?user_id={id}` | Service method | Table shows only events by selected user |
 | 4 | **Filter by Type** | Selects event type | `AuditFilterBar.apply()` | `GET /api/v1/audit?event_type=config.updated` | Service method | Table filters to specific event type |
-| 5 | **Filter by Resource** | Selects resource | `AuditFilterBar.apply()` | `GET /api/v1/audit?resource=rules` | Service method | Shows only events for selected resource |
+| 5 | **Filter by Resource** | Selects resource | `AuditFilterBar.apply()` | `GET /api/v1/audit?resource_type=rules` | Service method | Shows only events for selected resource |
 | 6 | **Date Range** | Picks date range | `AuditFilterBar.apply()` | `GET /api/v1/audit?from=&to=` | Service method | Table shows events within date range |
 | 7 | **Search** | Types search query | `AuditLogPage.search()` (debounced) | `GET /api/v1/audit?q=search_term` | Service method | Full-text search in event summaries |
 | 8 | **View Detail** | Clicks event row | `AuditStore.getEventDetail()` | `GET /api/v1/audit/{id}` | `AuditService.getEventDetail()` | Side panel: full event, user info, IP, user agent |

@@ -263,7 +263,7 @@ stateDiagram-v2
 | # | Feature | User Action | Frontend Controller | API Endpoint | Backend Service | Reaction / Side Effect |
 |---|---------|-------------|-------------------|--------------|-----------------|----------------------|
 | 1 | **Load Inbox** | Page mount | `NotificationStore.fetchNotifications('inbox')` | `GET /api/v1/notifications?tab=inbox` | `NotificationService.listNotifications()` | Chronological list with unread highlighted |
-| 2 | **View Detail** | Clicks notification | `NotificationDetailModal` | `GET /api/v1/notifications/{id}` | Service method | Full content, delivery status per channel shown |
+| 2 | **View Detail** | Clicks notification | `NotificationDetailModal` | `GET /api/v1/notifications/{id}` & `GET /api/v1/notifications/{id}/delivery` | Service method | Full content, delivery status per channel shown |
 | 3 | **Mark Read** | Clicks mark read | `NotificationStore.markRead()` | `PATCH /api/v1/notifications/{id}/read` | `NotificationService.markRead()` | Unread badge removed, counter decrements |
 | 4 | **Mark All Read** | Clicks mark all read | `NotificationStore.markAllRead()` | `POST /api/v1/notifications/mark-all-read` | Service method | All notifications marked read |
 | 5 | **Delete** | Clicks delete | `NotificationStore.deleteNotification()` | `DELETE /api/v1/notifications/{id}` | Service method | Notification removed from list |

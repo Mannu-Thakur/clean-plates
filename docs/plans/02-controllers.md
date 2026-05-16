@@ -27,13 +27,13 @@
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
 | `list_devices` | `status_filter, page, size` | `PaginatedDevices` | Query devices table with optional status filter → return paginated list with health summary |
-| `register_device` | `DeviceCreateSchema` | `DeviceSchema` | Create device record → generate API key → hash and store → return device with raw API key (once) |
+| `register_device` | `DeviceCreateSchema` | `DeviceWithApiKeySchema` | Create device record → generate API key → hash and store → **N4-fix: return `DeviceWithApiKeySchema` (includes raw `api_key` field, shown once only)** — subsequent `GET /devices/{id}` returns `DeviceSchema` without the key |
 | `get_device` | `device_id` | `DeviceSchema` | Fetch device by ID → 404 if not found |
 | `update_device` | `device_id, DeviceUpdateSchema` | `DeviceSchema` | Partial update device identity fields → log audit |
 | `get_device_health` | `device_id` | `HealthDataSchema` | Fetch latest health record for device |
 | `get_health_history` | `device_id, period` | `HealthHistorySchema` | Query device_health by device_id within period → return time-series list |
 | `restart_service` | `device_id` | `void` | Publish restart command to Redis channel `cleanplates:devices:{device_id}:commands` with payload `{"command":"restart"}` → log audit. **Note:** The Pi must periodically poll `GET /devices/{device_id}/commands` or subscribe to this Redis channel via a background loop to receive the command. This route is a best-effort signal only — no delivery guarantee. |
-| `trigger_sync` | `device_id` | `SyncResultSchema` | Mark device for sync → return pending entry count. **Note:** Returns `SyncResultSchema` with only `total_received` populated (= number of offline entries pending upload); `inserted`, `skipped`, and `errors` will be `0`/`[]`. |
+| `trigger_sync` | `device_id` | `QueuedSyncSchema` | Mark device for sync → return pending entry count. **Note (H4-fix):** Returns `QueuedSyncSchema` (`message`, `pending_count`, `device_id`) — NOT `SyncResultSchema`. Using `SyncResultSchema` here would falsely imply `inserted=0/skipped=0` when the sync is simply queued, not yet processed. `SyncResultSchema` is only used by the actual bulk-ingest endpoint (`POST /ml/sync`). |
 | `decommission` | `device_id` | `void` | Set device status=decommissioned → log audit |
 
 ---
@@ -46,10 +46,10 @@
 |----------|-------|--------|------|
 | `list_students` | `status, hostel, branch, year, page, size, sort, order` | `PaginatedStudents` | Join students + student_mappings → apply filters → return with mapping status indicator |
 | `get_student` | `student_id` | `StudentDetailSchema` | Fetch student + mapping → 404 if not found |
-| `map_student_id` | `student_id, MappingCreateSchema` | `StudentSchema` | Create/upsert student_mapping record → log audit event |
+| `map_student_id` | `student_id, MappingCreateSchema` | `StudentSchema` | Create/upsert student_mapping record → log audit event. **⚠ M2-fix (Card Re-assignment Policy):** Before inserting, check if `MappingCreateSchema.device_id` already exists on a *different* student (`student_id ≠ incoming student_id`). If yes, **reject with HTTP 409** and message `"This card ID is already mapped to another student. Deactivate that student first or use a different card ID."` — do NOT silently overwrite. This same check must run inside `import_mapping_csv` for each CSV row; log a per-row error in `ImportResultSchema.errors` instead of raising a 409 for the whole batch. |
 | `update_mapping` | `student_id, MappingUpdateSchema` | `StudentSchema` | PATCH mapping fields (name, roll, branch, year, hostel, room, email) → log audit |
-| `update_student_profile` | `student_id, MappingUpdateSchema` | `StudentSchema` | PATCH top-level student profile fields (hostel, room, etc.) — bound to `PATCH /{student_id}` route → log audit |
-| `import_mapping_csv` | `csv_file` | `ImportResultSchema` | Parse CSV rows → validate each (device_id, name, roll, year, branch) → bulk upsert mappings → return success/error counts |
+| `update_student_profile` | `student_id, StudentProfileUpdateSchema` | `StudentSchema` | **M6-fix:** PATCHes `StudentModel.is_active` only — this is the sole directly mutable column on `students` (status/scores are system-computed). Fields like `hostel`, `room_number`, `name`, `email` belong to `StudentMappingModel` — use `update_mapping` (`PATCH /{student_id}/map`) for those. Schema: `StudentProfileUpdateSchema { is_active: bool \| None }`. → log audit |
+| `import_mapping_csv` | `csv_file` | `ImportResultSchema` | Parse CSV rows → validate each (device_id, name, roll, year, branch). **⚠ H6-audit-fix (Student Creation Omission):** For any `device_id` in the CSV that does NOT already have a `StudentModel` record in the database, auto-create a `StudentModel` stub with `device_id=csv_device_id`, `status='green'`, and all counters at zero **before** inserting the mapping. Without this, the mapping insert will fail on the `student_id` FK constraint because the parent record doesn’t exist. → enforce M2-fix card re-assignment check per row → bulk upsert mappings → return success/error counts |
 | `export_students` | `format: str (query param, one of: csv\|excel), filters (same query params as list_students)` | `FileResponse` | Query students+mappings with filters → generate CSV/Excel → return as file download |
 | `bulk_warn` | `student_ids[], reason` | `void` | For each student_id → call WarningService.create_warning() (stub available from Phase 2) → send notifications |
 | `get_student_stats` | `student_id, period` | `WasteStatsSchema` | Aggregate waste_entries for student in period → compute avg, total, peak meal, food breakdown |
@@ -60,7 +60,7 @@
 | `get_student_history` | `student_id, page, size` | `PaginatedEntries` | Paginated waste_entries for student ordered by timestamp desc |
 | `get_student_warnings` | `student_id` | `StudentWarningsSchema` | All warnings + penalties for student ordered by created_at desc |
 | `create_warning` | `student_id, WarningCreateSchema, current_user` | `WarningSchema` | Delegates directly to `WarningService.create_warning()` — no duplicated logic |
-| `create_penalty_direct` | `student_id, PenaltyCreateSchema, current_user` | `PenaltySchema` | Create a penalty directly on a student (no source warning) → increment student.penalty_count → send email if flag set → update student status → log audit |
+| `create_penalty_direct` | `student_id, PenaltyCreateSchema, current_user` | `PenaltySchema` | Create a penalty directly on a student (no source warning) → **⚠ H3-audit-fix:** increment `student.penalty_count` via SQL-level atomic update → send email if flag set → update student status → log audit |
 
 ---
 
@@ -70,12 +70,12 @@
 
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
-| `create_waste_entry` | `WasteEntryCreateSchema (api_key auth)` | `WasteEntrySchema` | Validate payload → **resolve `device_serial → device_id` UUID via DB lookup** (same as `bulk_sync`) → resolve `student_device_id → student_id` UUID via DB lookup → resolve meal type from config time windows → classify severity → save to DB → publish `waste_entry_created` event to rule engine → push WebSocket event |
-| `bulk_sync` | `entries[] (api_key auth)` | `SyncResultSchema` | Batch insert waste entries from offline queue → deduplicate by **(device_serial + timestamp)**: resolve `device_serial → device_id` UUID first, then skip any entry where `(device_id, timestamp)` already exists in DB → trigger rule evaluation for each new entry → return inserted/skipped counts |
+| `create_waste_entry` | `WasteEntryCreateSchema (api_key auth)` | `WasteEntrySchema` | Validate payload → **resolve `device_serial → device_id` UUID via DB lookup** (same as `bulk_sync`) → resolve `student_device_id → student_id` UUID via DB lookup. **⚠ H1-audit-fix (Implicit Student Creation):** If no `StudentModel` exists for the given `student_device_id`, **auto-create** a new `StudentModel` stub with `device_id=student_device_id`, `status='green'`, and all counters at zero. This allows the waste entry to be saved immediately; admins map the identity later via `map_student_id`. Without this, scans from unregistered RFID cards are silently rejected, breaking the “ID-first mapping” workflow. → resolve meal type from config time windows (**H2-fix: if `meal_type` provided in payload use as-is; if absent, match timestamp against config meal windows; if no window matches — e.g. 3 AM — set `meal_type = "other"` as fallback. Never insert `NULL` — `meal_type` is `NOT NULL` in DB**) → classify severity → save to DB → publish `waste_entry_created` event to rule engine → push WebSocket event |
+| `bulk_sync` | `entries[] (api_key auth)` | `SyncResultSchema` | Batch insert waste entries from offline queue → deduplicate by **(device_serial + timestamp)**: resolve `device_serial → device_id` UUID first, then skip any entry where `(device_id, timestamp)` already exists in DB. **⚠ H1-audit-fix:** For each entry, resolve `student_device_id → student_id`. If no `StudentModel` exists, auto-create a stub (same logic as `create_waste_entry`). → trigger rule evaluation for each new entry → return inserted/skipped counts |
 | `get_entry` | `entry_id` | `WasteEntryDetailSchema` | Fetch entry with student mapping and device info |
 | `list_entries` | `student_id, device_id, meal_type, date_from, date_to, page, size` | `PaginatedEntries` | Filter waste_entries → paginated result |
 | `get_current_session` | `device_id` | `SessionSummarySchema` | Resolve active meal from config time windows by current time → count entries in session → return live summary |
-| `get_recent_entries` | `device_id, limit` | `WasteEntrySchema[]` | Latest N entries for device ordered by timestamp desc |
+| `get_recent_entries` | `device_id, limit` | `WasteEntrySchema[]` | Latest N entries for device ordered by timestamp desc → **N5-fix: join `student_mappings` to populate `student_name` field on each entry** (same join as `list_entries`) |
 
 ---
 
@@ -85,16 +85,16 @@
 
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
-| `list_warnings` | `status, priority, student_id, date_from, date_to, page, size` | `PaginatedWarnings` | Query warnings with filters → join student_mappings for name display |
+| `list_warnings` | `status, level, student_id, date_from, date_to, page, size` | `PaginatedWarnings` | Query warnings with filters → join student_mappings for name display. **N6-fix: filter param is `level` (values: `level_1`, `level_2`, `level_3`) NOT `priority` — `WarningModel` has no `priority` column.** |
 | `get_warning_stats` | `void` | `WarningSummarySchema` | Count active, escalated, total penalties → return summary cards data |
-| `create_warning` | `student_id, level, reason, rule_id, waste_entry_id, send_email` | `WarningSchema` | Insert warning record → increment student.warning_count → if send_email: queue email notification → log audit |
-| `resolve_warning` | `warning_id, resolution_note, current_user` | `void` | Set warning.status=resolved → decrement student.warning_count → log audit |
+| `create_warning` | `student_id, level, reason, rule_id, waste_entry_id, send_email, current_user?` | `WarningSchema` | Insert warning record → **⚠ H3-audit-fix (Atomic Counter):** increment `student.warning_count` using SQL-level atomic update (`UPDATE students SET warning_count = warning_count + 1 WHERE id = :student_id`) instead of ORM memory update to prevent lost updates under concurrent rule evaluation. → if send_email: queue email notification → log audit. **Note:** `current_user` can be `None` (for automated background rules), treat as System action. |
+| `resolve_warning` | `warning_id, resolution_note, current_user` | `void` | Set warning.status=resolved → **⚠ H3-audit-fix:** decrement `student.warning_count` using SQL-level atomic update (`warning_count = warning_count - 1`) → log audit |
 | `escalate_warning` | `warning_id, EscalateSchema, current_user` | `EscalationSchema` | Insert escalation record → set warning.status=escalated → send notification to target role → log audit |
-| `apply_penalty` | `warning_id, current_user` | `PenaltySchema` | Create penalty from warning → set warning.status=converted_to_penalty → update student status to red → send email → log audit |
+| `apply_penalty` | `warning_id, current_user` | `PenaltySchema` | Create penalty from warning → set warning.status=converted_to_penalty → **⚠ H3-audit-fix:** increment `student.penalty_count` via SQL-level atomic update → update student status to red → send email → log audit |
 | `bulk_resolve` | `warning_ids[], resolution_note, current_user` | `void` | Batch resolve warnings → update student.warning_count for each |
 | `export_warnings` | `format, filters` | `FileResponse` | Apply same filters as list_warnings → generate CSV/Excel → return as file download |
 | `list_penalties` | `status, student_id, page, size` | `PaginatedPenalties` | Query penalties with filters |
-| `revoke_penalty` | `penalty_id, reason, current_user` | `void` | Set penalty.status=revoked → recalculate student status → log audit |
+| `revoke_penalty` | `penalty_id, reason, current_user` | `void` | Set penalty.status=revoked → **⚠ H3-audit-fix:** decrement `student.penalty_count` via SQL-level atomic update → recalculate student status → log audit |
 | `list_escalations` | `status` | `EscalationSchema[]` | Query escalations with status filter |
 | `review_escalation` | `escalation_id, decision, review_note, current_user` | `void` | Set escalation.status → if approved: apply_penalty() → if rejected: resolve_warning() → log audit |
 
@@ -108,9 +108,9 @@
 |----------|-------|--------|------|
 | `list_rules` | `type, priority, status, sort, page, size` | `PaginatedRules` | Query rules where is_deleted=false → apply filters |
 | `get_rule` | `rule_id` | `RuleSchema` | Fetch rule by ID → 404 if deleted |
-| `create_rule` | `RuleCreateSchema, current_user` | `RuleSchema` | Validate rule JSON structure → insert rule → log audit → register with engine |
-| `update_rule` | `rule_id, RuleUpdateSchema, current_user` | `RuleSchema` | Validate updated rule → partial update → log audit with before/after state |
-| `delete_rule` | `rule_id, current_user` | `void` | Soft delete (is_deleted=true, active=false) → log audit |
+| `create_rule` | `RuleCreateSchema, current_user` | `RuleSchema` | Validate rule JSON structure **⚠ L2-audit-fix (Contradictory Action Validation):** Reject if actions contain mutually exclusive types (e.g. conflicting classify_student actions) → insert rule → log audit → register with engine |
+| `update_rule` | `rule_id, RuleUpdateSchema, current_user` | `RuleSchema` | Validate updated rule **⚠ L2-audit-fix:** Reject contradictory actions → partial update → log audit with before/after state |
+| `delete_rule` | `rule_id, current_user` | `void` | **⚠ M2-audit-fix (Rule Chain Deletion):** Before soft-deleting, query `RuleModel` for any active rule where `chain_to_rule_id = rule_id`. If found, return a warning response listing the dependent rules (e.g., `"Warning: Rule 'X' chains to this rule. Deleting will break the chain."`). Proceed with soft delete (is_deleted=true, active=false) regardless, but the warning lets admins fix chains proactively. → log audit |
 | `toggle_rule` | `rule_id, active: bool, current_user` | `void` | Set rule.active → log audit |
 | `duplicate_rule` | `rule_id, current_user` | `RuleSchema` | Clone rule record with name "(Copy of X)" → set active=false → insert |
 | `test_rule` | `rule_id, TestPayloadSchema` | `TestResultSchema` | Run condition matcher against provided sample data → return which conditions match + what actions would fire (no side effects) |
@@ -138,7 +138,7 @@
 | `get_improvement_tracking` | `FilterParams` | `ImprovementDataSchema[]` | Compare student avg waste: current period vs previous same-length period → rank by improvement |
 | `get_peak_waste` | `FilterParams` | `PeakDataSchema` | Group waste_entries by hour, weekday, meal → find max values → return peak hour, meal, weekday |
 | `get_sustainability_scores` | `branch?, year?` | `ScoreDistributionSchema` | Query students.sustainability_score → group by score band → optional branch/year filter |
-| `get_trends` | `type, FilterParams` | `TrendDataSchema` | `weekly`, `monthly_comparison`, or `semester` trend data |
+| `get_trends` | `type, FilterParams` | `TrendDataSchema` | `weekly`, `monthly_comparison`, or `semester` trend data. **M3-fix: `get_monthly_comparison` is dispatched internally inside this function when `type=monthly_comparison` — it is NOT a separate route function and must NOT be registered as its own FastAPI endpoint. Only `get_trends` is the route handler.** |
 
 ---
 
@@ -153,7 +153,7 @@
 | `get_current_session` | `device_id?` | `SessionSummarySchema` | Resolve active meal from config time windows by current time → count today's entries in that session → return live summary. **Note:** Delegates to `waste_service.get_current_session()` internally — do not duplicate the DB query logic here. |
 | `get_recent_entries` | `device_id?, limit` | `WasteEntrySchema[]` | Latest N waste entries → join student_mapping for name display |
 | `get_device_statuses` | `void` | `DeviceStatusSchema[]` | All devices → latest health record each → classify status |
-| `acknowledge_alert` | `notification_id, current_user` | `void` | Set notification is_read=true → log audit |
+| `acknowledge_alert` | `notification_id, current_user` | `void` | Set notification is_read=true → log audit. **[F11-fix]** `is_read` is a single flag per `NotificationModel` — for broadcasts (`recipient_type: all/branch`), marking read means the admin user has acknowledged the alert, not per-recipient read status. |
 
 ---
 
@@ -165,6 +165,7 @@
 |----------|-------|--------|------|
 | `list_notifications` | `tab, type, channel, page, size` | `PaginatedNotifications` | Query notifications by tab (inbox=unread, sent, scheduled) → apply type/channel filters |
 | `get_notification` | `notif_id` | `NotificationDetailSchema` | Fetch notification + delivery status |
+| `get_delivery_status` | `notif_id` | `DeliveryStatusSchema[]` | **[M5-audit-fix]** Fetch delivery tracking info for the notification: per-recipient delivery status, timestamps, errors. This satisfies the frontend spec’s `GET /notifications/{id}/delivery` expectation (see `09-notifications.md` UI spec). |
 | `mark_read` | `notif_id, current_user` | `void` | Set notification.is_read=true |
 | `mark_all_read` | `current_user` | `void` | Bulk update is_read=true for current user's unread notifications |
 | `delete_notification` | `notif_id, current_user` | `void` | Soft delete notification record |
@@ -183,7 +184,7 @@
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
 | `list_reports` | `type, date_from, date_to, page, size` | `PaginatedReports` | Query reports table with filters → return list with download availability |
-| `generate_report` | `ReportConfigSchema, current_user` | `ReportSchema` | Insert report record (status=pending) → enqueue ARQ task → return report ID for polling |
+| `generate_report` | `ReportConfigSchema, current_user, arq_pool` | `ReportSchema` | Insert report record (status=pending) → enqueue ARQ task via `await arq_pool.enqueue_job("generate_report_task", ...)` — **[F7-fix]** `arq_pool: ArqRedis` required per Cross-Cutting Rule #11 → return report ID for polling |
 | `download_report` | `report_id` | `FileResponse` | Fetch report.file_path → validate exists → stream file |
 | `delete_report` | `report_id, current_user` | `void` | Delete file from disk → remove DB record → log audit |
 | `list_schedules` | `void` | `ReportScheduleSchema[]` | Query report_schedules |
@@ -242,12 +243,12 @@
 | `get_security_config` | `void` | `SecurityConfigSchema` | Fetch security section from system_config |
 | `update_security_config` | `SecurityConfigSchema, current_user` | `void` | Validate values → update config → log audit |
 | `list_backups` | `void` | `BackupSchema[]` | Query backups table ordered by created_at desc |
-| `trigger_backup` | `current_user` | `BackupSchema` | Insert backup record → enqueue ARQ backup task → return record |
+| `trigger_backup` | `current_user, arq_pool` | `BackupSchema` | Insert backup record → enqueue ARQ backup task via `await arq_pool.enqueue_job("create_backup_task", ...)` — **[F7-fix]** `arq_pool: ArqRedis` required per Cross-Cutting Rule #11 → return record |
 | `download_backup` | `backup_id` | `FileResponse` | Fetch backup.file_path → stream ZIP file |
-| `restore_backup` | `backup_file, current_user` | `RestoreResultSchema` | Validate file → enqueue restore task → log audit (CAUTION: destructive) |
+| `restore_backup` | `backup_file: UploadFile, current_user` | `RestoreResultSchema` | **[F10-fix]** `backup_file` is a `FastAPI UploadFile` (not a backup_id reference). Validate file type (.zip) and size per Cross-Cutting Rule #9 → save to staging path → enqueue restore task for restart → log audit (CAUTION: destructive) |
 | `get_appearance` | `void` | `AppearanceConfigSchema` | Fetch appearance config section |
 | `update_appearance` | `AppearanceConfigSchema, current_user` | `void` | Update appearance config → log audit |
-| `upload_logo` | `image_file, current_user` | `LogoUrlSchema` | Validate file type/size → save to uploads → update config logo_path → return URL |
+| `upload_logo` | `image_file, current_user` | `LogoUrlSchema` | **⚠ L1-audit-fix (File Upload Size):** Before processing, validate `Content-Length` header and enforce a maximum file size (e.g., 5MB). Read the file in bounded chunks and abort if the byte count exceeds the limit. Without this, malicious users can upload multi-GB files causing application-level DoS in environments lacking reverse-proxy limits. → Validate file type → save to uploads → update config logo_path → return URL |
 | `clear_cache` | `current_user` | `CacheResultSchema` | Flush Redis cache → log audit → return success |
 | `optimize_db` | `current_user` | `OptimizeResultSchema` | Run SQLite VACUUM + ANALYZE → return freed space |
 | `get_system_info` | `void` | `SystemInfoSchema` | Collect OS version, Python version, DB file size, uptime, disk usage → return |
@@ -261,12 +262,12 @@
 
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
-| `list_events` | `user_id, event_type, resource_type, date_from, date_to, q, sort, page, size` | `PaginatedAuditEvents` | Query audit_events with all filters → full-text search on summary if q provided |
+| `list_events` | `user_id, event_type, resource_type, date_from, date_to, q, sort, page, size` | `PaginatedAuditEvents` | Query audit_events with all filters → full-text search on summary if q provided. **⚠ M6-audit-fix:** `event_type` (e.g., `?event_type=config.updated`) and `resource_type` (e.g., `?resource_type=rules`) must be explicitly accepted and processed as query parameters — the UI’s filter bar (`14-audit-log.md`) heavily relies on these. |
 | `get_event` | `event_id` | `AuditEventDetailSchema` | Fetch full event including before_state, after_state, metadata |
 | `get_stats` | `period` | `AuditStatsSchema` | Count events by type today → return stats bar data |
 | `get_timeline` | `FilterParams` | `TimelineDataSchema` | Group events by user+day → return structured timeline |
 | `export_log` | `FilterParams, format` | `FileResponse` | Apply filters → generate CSV → stream download |
-| `log` | `AuditEventPayload` | `void` | **Internal only** — insert audit_event record (called by other services) |
+| `log` | `AuditEventPayload, current_user?` | `void` | **Internal only** — insert audit_event record. **Note:** `current_user` can be `None` (for background worker tasks), treat as System action. |
 | `purge_old_events` | `retention_days` | `int` | Delete events older than retention_days → return deleted count (called by ARQ scheduler) |
 
 ---
@@ -277,9 +278,10 @@
 
 | Function | Input | Output | Work |
 |----------|-------|--------|------|
-| `ingest_detection` | `DetectionPayload (api_key auth)` | `WasteEntrySchema` | Validate payload → lookup student by device_id → create waste entry → trigger rule engine → push WS event |
-| `bulk_ingest` | `DetectionPayload[] (api_key auth)` | `SyncResultSchema` | Deduplicate by (device_id+timestamp) → batch insert → trigger rules → return counts |
+| `ingest_detection` | `DetectionPayload (api_key auth)` | `WasteEntrySchema` | Validate payload → lookup student by device_id. **⚠ H1-audit-fix:** If no `StudentModel` exists, auto-create a stub (same logic as `WasteController.create_waste_entry`). → create waste entry → trigger rule engine → push WS event |
+| `bulk_ingest` | `DetectionPayload[] (api_key auth)` | `SyncResultSchema` | Deduplicate by (device_id+timestamp). **⚠ H1-audit-fix:** For each entry, auto-create `StudentModel` stub if not found. → batch insert → trigger rules → return counts |
 | `ml_heartbeat` | `HeartbeatPayload (api_key auth)` | `void` | Update device.last_heartbeat → insert health snapshot |
+| `upload_image` | `UploadFile (api_key auth)` | `LogoUrlSchema` | **⚠ L1-audit-fix (File Upload Size):** Validate `Content-Length` header and enforce maximum file size (e.g., 10MB for plate images). Read in bounded chunks and abort if exceeded. → Validate image type → save to `settings.UPLOAD_DIR` → return filename/path to be sent in `ingest_detection` payload |
 
 ---
 
@@ -313,8 +315,8 @@
 | `run_hourly_aggregation` | `void` | `void` | Group last hour's waste_entries by scope types → upsert aggregated_waste |
 | `run_daily_aggregation` | `date` | `void` | Aggregate yesterday's data for all scopes → upsert |
 | `compute_sustainability_scores` | `void` | `void` | For each student: compute score from 5 factors → update student.sustainability_score |
-| `update_student_status` | `student_id` | `void` | Compute status (green/yellow/orange/red) from avg_waste_grams → update student.status |
-| `check_device_offline_status` | `void` | `void` | **(G3)** Read threshold from `config_service.get_config("device")["device_offline_threshold_minutes"]` (default 10) → query devices where `last_heartbeat < now − threshold` AND status != `decommissioned` → publish `device_offline` event to event bus for each; also called by `aggregation_worker` hourly |
+| `update_student_status` | `student_id` | `void` | **⚠ H4-audit-fix (Manual Status Protection):** First check `student.is_status_manual`. If `True`, **skip** this student entirely — the rule engine or admin has explicitly set the status and it must not be overwritten by automated aggregation. If `False`, compute status (green/yellow/orange/red) from avg_waste_grams → update student.status. |
+| `check_device_offline_status` | `void` | `void` | **(G3)** Read threshold from `config_service.get_config("device")["device_offline_threshold_minutes"]` (default 10) → query devices where `last_heartbeat < now − threshold` AND status != `decommissioned` **AND status != `offline`** (**[L1-fix]** — only fire for devices transitioning to offline, not already offline) → for each matched device: publish `device_offline` event to event bus, then update `device.status = 'offline'` in the same transaction. This ensures the event fires exactly once per offline transition. Also called by `aggregation_worker` on 5-minute schedule. |
 
 ### EmailService
 **File:** `app/services/email_service.py`

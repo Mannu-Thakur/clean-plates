@@ -18,6 +18,8 @@
 | `is_active` | Boolean | DEFAULT true | Deactivated users cannot login |
 | `failed_login_attempts` | Integer | DEFAULT 0 | Lockout counter |
 | `locked_until` | DateTime | NULLABLE | Lockout expiry |
+| `password_reset_token` | String(255) | NULLABLE | SHA-256 hashed reset token (set on `forgot_password`, cleared after use) |
+| `password_reset_expires_at` | DateTime | NULLABLE | Reset token expiry — typically `now + 1 hour`; reject if past |
 | `last_login` | DateTime | NULLABLE | |
 | `created_at` | DateTime | NOT NULL | |
 | `updated_at` | DateTime | NOT NULL | |
@@ -110,6 +112,7 @@
 | `id` | UUID | PK | |
 | `device_id` | String(100) | UNIQUE, NOT NULL | System-assigned card/tag ID |
 | `status` | String(20) | DEFAULT `green` | `green`, `yellow`, `orange`, `red` |
+| `is_status_manual` | Boolean | DEFAULT false | **[H4-audit-fix]** When `true`, `aggregation_service.update_student_status()` skips this student, preserving rule-engine or admin-set status. Set to `true` by `action_executor.classify_student()` and manually via admin API. Reset to `false` when an admin explicitly requests status recalculation. |
 | `sustainability_score` | Float | DEFAULT 100.0 | 0–100 |
 | `warning_count` | Integer | DEFAULT 0 | Active warnings |
 | `penalty_count` | Integer | DEFAULT 0 | Total penalties |
@@ -187,6 +190,7 @@
 | `created_at` | DateTime | NOT NULL | |
 
 **Indexes:** `student_id`, `device_id`, `timestamp`, `session_date`, `meal_type`, `severity`
+**Unique Constraint:** `(device_id, timestamp)` — **[L2-fix]** Required for race-condition-safe deduplication in `bulk_sync`. Without this composite unique constraint, concurrent bulk syncs from the same device can insert duplicate entries despite application-level `SELECT` checks.
 
 ---
 
@@ -228,7 +232,7 @@
 | `student_id` | UUID | FK → students.id, NOT NULL | Denormalized |
 | `reason` | String(500) | NOT NULL | |
 | `escalated_to_role` | String(50) | NOT NULL | Target role |
-| `escalated_by` | UUID | FK → users.id, NOT NULL | |
+| `escalated_by` | UUID | FK → users.id, **NULLABLE** | Null when auto-escalated by rule engine (no `current_user` in ARQ worker context) — **[G6-fix]** |
 | `status` | String(20) | DEFAULT `pending` | `pending`, `approved`, `rejected` |
 | `reviewed_by` | UUID | FK → users.id, NULLABLE | |
 | `review_note` | String(500) | NULLABLE | |
@@ -336,7 +340,7 @@
 | `related_entity_id` | UUID | NULLABLE | |
 | `created_at` | DateTime | NOT NULL | |
 
-**Indexes:** `type`, `status`, `recipient_type`, `created_at`
+**Indexes:** `type`, `status`, `recipient_type`, `created_at`, `(status, scheduled_at)` *(composite — required for scheduled notification cron query: `WHERE status='pending' AND scheduled_at <= now()`; without this index the every-5-minute ARQ task does a full table scan — Mi2-fix)*
 
 ---
 
@@ -431,7 +435,7 @@
 | Column | Type | Constraints | Notes |
 |--------|------|-------------|-------|
 | `id` | UUID | PK | |
-| `section` | String(50) | NOT NULL | `institution`, `thresholds`, `meals`, `branches`, `system`, `appearance` |
+| `section` | String(50) | NOT NULL | `institution`, `thresholds`, `meals`, `branches`, `system`, `device`, `appearance`, `security` — **[G5-fix]** `security` section added for `SecurityConfigSchema` (JWT expiry, password policy, lockout settings) accessed via `GET/PATCH /settings/security` |
 | `key` | String(100) | NOT NULL | Config key |
 | `value` | JSON | NOT NULL | Config value (any type) |
 | `updated_by` | UUID | FK → users.id, NULLABLE | |
