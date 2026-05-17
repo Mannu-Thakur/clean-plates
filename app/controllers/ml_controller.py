@@ -47,8 +47,9 @@ async def ml_heartbeat(
     body: HeartbeatPayload,
     *,
     device: DeviceModel,
+    arq_pool: ArqRedis | None = None,
 ) -> MessageSchema:
-    await waste_service.ml_heartbeat(db, body, device=device)
+    await waste_service.ml_heartbeat(db, body, device=device, arq_pool=arq_pool)
     return MessageSchema(message="Heartbeat recorded")
 
 

@@ -52,8 +52,9 @@ async def ml_heartbeat(
     body: HeartbeatPayload,
     device: DeviceModel = Depends(get_api_key_device),
     db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
 ):
-    return await ml_controller.ml_heartbeat(db, body, device=device)
+    return await ml_controller.ml_heartbeat(db, body, device=device, arq_pool=arq_pool)
 
 
 @router.post("/upload-image", response_model=LogoUrlSchema)

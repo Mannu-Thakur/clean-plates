@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import math
 from datetime import UTC, date, datetime
 from typing import Any
@@ -37,8 +38,10 @@ from app.schemas.rules import (
     TestResultSchema,
 )
 from app.services import audit_service
+from app.services.rule_event_service import event_bus
 
 
+logger = logging.getLogger("cleanplates.rules")
 _PRIORITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 _SORT_COLUMNS = {
     "name": RuleModel.name,
@@ -55,6 +58,40 @@ _TRIGGER_ENTITY_KEYS = ("waste_entry_id", "entry_id", "warning_id", "penalty_id"
 
 def _utcnow() -> datetime:
     return datetime.now(UTC).replace(tzinfo=None)
+
+
+async def _publish_rule_execution_event(
+    arq_pool: ArqRedis | None,
+    *,
+    rule: RuleModel,
+    execution: RuleExecutionModel,
+    matched: bool,
+    event_type: str,
+    event_data: dict[str, Any],
+    action_results: list[ActionResult],
+) -> None:
+    if arq_pool is None or (not matched and execution.result_status == "skipped"):
+        return
+    try:
+        await event_bus.publish(
+            "rule_executed",
+            {
+                "rule_id": rule.id,
+                "rule_name": rule.name,
+                "execution_id": execution.id,
+                "matched": matched,
+                "status": execution.result_status,
+                "trigger_event_type": event_type,
+                "trigger_entity_id": execution.trigger_entity_id,
+                "student_id": execution.student_id,
+                "actions": [result.to_dict() for result in action_results],
+                "error": execution.error_message,
+                "source_event": event_data,
+            },
+            redis=arq_pool,
+        )
+    except Exception:
+        logger.exception("Failed to publish rule execution event for rule %s", rule.id)
 
 
 def _dump(value: Any) -> Any:
@@ -669,6 +706,15 @@ async def _evaluate_rule(
     )
     db.add(execution)
     await db.flush()
+    await _publish_rule_execution_event(
+        arq_pool,
+        rule=rule,
+        execution=execution,
+        matched=matched,
+        event_type=event_type,
+        event_data=event_data,
+        action_results=action_results,
+    )
 
     outcomes = [
         {

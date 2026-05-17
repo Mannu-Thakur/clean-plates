@@ -11,9 +11,11 @@ Ref: 06-phase-wise-plan.md Phase 1
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
+from contextlib import suppress
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -27,6 +29,7 @@ from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging import RequestLoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.services import ws_service
 
 # ── Logging setup ────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -49,7 +52,18 @@ async def lifespan(app: FastAPI):
         logger.warning("Could not connect to Redis: %s — rate limiting and background jobs will be unavailable", e)
         app.state.arq_pool = None
 
+    app.state.ws_subscriber_task = asyncio.create_task(ws_service.subscriber_loop())
+    logger.info("WebSocket Redis subscriber task started")
+
     yield
+
+    ws_task = getattr(app.state, "ws_subscriber_task", None)
+    if ws_task is not None:
+        ws_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await ws_task
+        logger.info("WebSocket Redis subscriber task stopped")
+    await ws_service.close()
 
     # Shutdown — close Redis pool
     if app.state.arq_pool is not None:
@@ -107,6 +121,8 @@ from app.routers.notifications import router as notifications_router  # noqa: E4
 from app.routers.templates import router as templates_router  # noqa: E402
 from app.routers.config import router as config_router  # noqa: E402
 from app.routers.reports import router as reports_router  # noqa: E402
+from app.routers.monitoring import router as monitoring_router  # noqa: E402
+from app.routers.ws import router as ws_router  # noqa: E402
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api/v1")
@@ -122,3 +138,5 @@ app.include_router(notifications_router, prefix="/api/v1")
 app.include_router(templates_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
+app.include_router(monitoring_router, prefix="/api/v1")
+app.include_router(ws_router)

@@ -7,6 +7,7 @@ Ref: docs/plans/02-controllers.md sections 4 and 15.
 from __future__ import annotations
 
 import math
+import logging
 import os
 import uuid
 from datetime import UTC, date, datetime, time, timedelta, timezone, tzinfo
@@ -34,7 +35,7 @@ from app.schemas.waste import (
     WasteEntrySchema,
 )
 from app.services import config_service
-from app.services.rule_event_service import dispatch_rule_event
+from app.services.rule_event_service import dispatch_rule_event, event_bus
 
 
 _IMAGE_EXTENSIONS_BY_TYPE = {
@@ -45,6 +46,7 @@ _IMAGE_EXTENSIONS_BY_TYPE = {
 }
 _MAX_PLATE_IMAGE_BYTES = 10 * 1024 * 1024
 _UPLOAD_CHUNK_SIZE = 64 * 1024
+logger = logging.getLogger("cleanplates.waste")
 _FALLBACK_TIMEZONES = {
     "Asia/Kolkata": timezone(timedelta(hours=5, minutes=30)),
     "Asia/Calcutta": timezone(timedelta(hours=5, minutes=30)),
@@ -527,6 +529,7 @@ async def ml_heartbeat(
     payload: HeartbeatPayload,
     *,
     device: DeviceModel,
+    arq_pool: ArqRedis | None = None,
 ) -> None:
     device.last_heartbeat = _utcnow()
     device.status = "online"
@@ -542,6 +545,27 @@ async def ml_heartbeat(
         )
     )
     await db.flush()
+    if arq_pool is not None:
+        try:
+            await event_bus.publish(
+                "device_heartbeat",
+                {
+                    "device_id": device.id,
+                    "device_serial": device.device_serial,
+                    "edge_node_name": device.edge_node_name,
+                    "mess_name": device.mess_name,
+                    "status": device.status,
+                    "last_heartbeat": device.last_heartbeat,
+                    "cpu_percent": payload.cpu_percent,
+                    "ram_percent": payload.ram_percent,
+                    "temperature": payload.temperature,
+                    "storage_percent": payload.storage_percent,
+                    "connectivity": payload.connectivity,
+                },
+                redis=arq_pool,
+            )
+        except Exception:
+            logger.exception("Failed to publish device heartbeat event for %s", device.id)
 
 
 async def upload_image(
