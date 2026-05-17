@@ -29,7 +29,7 @@ from app.middleware.error_handler import register_error_handlers
 from app.middleware.logging import RequestLoggingMiddleware
 from app.middleware.rate_limit import RateLimitMiddleware
 from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.services import ws_service
+from app.services import backup_service, ws_service
 
 # ── Logging setup ────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -54,8 +54,17 @@ async def lifespan(app: FastAPI):
 
     app.state.ws_subscriber_task = asyncio.create_task(ws_service.subscriber_loop())
     logger.info("WebSocket Redis subscriber task started")
+    app.state.restart_lock_task = asyncio.create_task(backup_service.watch_restart_lock())
+    logger.info("Restart-lock watcher task started")
 
     yield
+
+    restart_task = getattr(app.state, "restart_lock_task", None)
+    if restart_task is not None:
+        restart_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await restart_task
+        logger.info("Restart-lock watcher task stopped")
 
     ws_task = getattr(app.state, "ws_subscriber_task", None)
     if ws_task is not None:
@@ -122,6 +131,9 @@ from app.routers.templates import router as templates_router  # noqa: E402
 from app.routers.config import router as config_router  # noqa: E402
 from app.routers.reports import router as reports_router  # noqa: E402
 from app.routers.monitoring import router as monitoring_router  # noqa: E402
+from app.routers.settings import router as settings_router  # noqa: E402
+from app.routers.audit import router as audit_router  # noqa: E402
+from app.routers.roles import router as roles_router  # noqa: E402
 from app.routers.ws import router as ws_router  # noqa: E402
 
 app.include_router(health_router)
@@ -139,4 +151,7 @@ app.include_router(templates_router, prefix="/api/v1")
 app.include_router(config_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(monitoring_router, prefix="/api/v1")
+app.include_router(settings_router, prefix="/api/v1")
+app.include_router(audit_router, prefix="/api/v1")
+app.include_router(roles_router, prefix="/api/v1")
 app.include_router(ws_router)

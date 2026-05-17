@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import suppress
 from typing import Any
 
 from arq import cron
@@ -15,6 +17,13 @@ from app.workers.aggregation_worker import (
     compute_sustainability_scores,
     run_daily_aggregation,
     run_hourly_aggregation,
+)
+from app.services import backup_service
+from app.workers.backup_worker import (
+    auto_backup,
+    create_backup_task,
+    purge_old_audit_events,
+    restore_backup_task,
 )
 from app.workers.rule_worker import evaluate_event
 from app.workers.report_worker import (
@@ -32,6 +41,7 @@ logger = logging.getLogger("cleanplates.worker")
 async def on_startup(ctx: dict[str, Any]) -> None:
     """Attach worker-local dependencies to ARQ context."""
     ctx["db_session_factory"] = AsyncSessionLocal
+    ctx["restart_lock_task"] = asyncio.create_task(backup_service.watch_restart_lock())
 
     # Recover records left in in-progress states if the worker restarted mid-job.
     async with AsyncSessionLocal() as db:
@@ -54,6 +64,11 @@ async def on_startup(ctx: dict[str, Any]) -> None:
 
 
 async def on_shutdown(ctx: dict[str, Any]) -> None:  # noqa: ARG001
+    restart_task = ctx.get("restart_lock_task")
+    if restart_task is not None:
+        restart_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await restart_task
     await engine.dispose()
 
 
@@ -69,6 +84,10 @@ class WorkerSettings:
         send_scheduled_notifications,
         send_notification_task,
         send_email_task,
+        create_backup_task,
+        auto_backup,
+        purge_old_audit_events,
+        restore_backup_task,
     ]
     cron_jobs = [
         cron(run_hourly_aggregation, minute={0, 30}),
@@ -77,6 +96,8 @@ class WorkerSettings:
         cron(check_device_offline_status, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
         cron(execute_scheduled_reports, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
         cron(send_scheduled_notifications, minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
+        cron(auto_backup, minute=0),
+        cron(purge_old_audit_events, hour=3, minute=0),
     ]
     redis_settings = RedisSettings.from_dsn(settings.REDIS_URL)
     on_startup = on_startup
