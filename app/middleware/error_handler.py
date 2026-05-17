@@ -30,9 +30,10 @@ def register_error_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        from fastapi.encoders import jsonable_encoder
         return JSONResponse(
             status_code=422,
-            content={"detail": exc.errors(), "body": str(exc.body)[:500]},
+            content={"detail": jsonable_encoder(exc.errors()), "body": str(exc.body)[:500]},
         )
 
     @app.exception_handler(SQLAlchemyError)

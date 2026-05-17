@@ -461,7 +461,10 @@ async def schedule_notification(
     *,
     current_user: UserSchema,
 ) -> NotificationSchema:
-    if body.scheduled_at <= _utcnow():
+    scheduled_at = body.scheduled_at
+    if scheduled_at.tzinfo is not None:
+        scheduled_at = scheduled_at.astimezone(UTC).replace(tzinfo=None)
+    if scheduled_at <= _utcnow():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="scheduled_at must be in the future")
     created = await create_system_notification(
         db,
@@ -473,7 +476,7 @@ async def schedule_notification(
         recipient_ids=body.recipient_ids,
         sender_id=current_user.id,
         template_id=str(body.template_id) if body.template_id else None,
-        scheduled_at=body.scheduled_at,
+        scheduled_at=scheduled_at,
     )
     await audit_service.log(
         db,

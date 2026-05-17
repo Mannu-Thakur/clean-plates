@@ -105,7 +105,7 @@ async def export_log(
         date_to=date_to,
         q=q,
     )
-    return FileResponse(file_path, filename=filename)
+    return FileResponse(file_path, filename=filename, media_type="text/csv")
 
 
 @router.get("/{event_id}", response_model=AuditEventDetailSchema)
