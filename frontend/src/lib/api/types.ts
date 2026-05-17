@@ -52,6 +52,69 @@ export interface KpiOverview {
   rule_violations_today: number;
 }
 
+export interface MealSession {
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | string | null;
+  start_time: string;
+  end_time: string;
+  entry_count: number;
+  is_active: boolean;
+  session_name?: string;
+  entry_count_today?: number;
+  total_waste_today_grams?: number;
+}
+
+export interface LiveWasteEntry {
+  id: string;
+  student_name?: string | null;
+  student_roll_number?: string | null;
+  student_device_id?: string | null;
+  student_id?: string | null;
+  device_id: string;
+  weight_grams: number;
+  meal_type: string;
+  food_items: Array<string | { name: string; grams?: number | null }>;
+  severity: 'low' | 'medium' | 'high' | string;
+  plate_image_path?: string | null;
+  timestamp: string;
+}
+
+export interface DeviceStatus {
+  id: string;
+  name?: string;
+  edge_node_name?: string;
+  mess_name?: string | null;
+  status: 'online' | 'offline' | 'warning' | 'decommissioned' | string;
+  cpu_percent?: number | null;
+  ram_percent?: number | null;
+  temperature?: number | null;
+  last_heartbeat?: string | null;
+  ip_address?: string | null;
+  firmware_version?: string | null;
+  uptime_seconds?: number | null;
+}
+
+export interface MonitoringAlert {
+  id?: string;
+  notification_id?: string;
+  subject?: string;
+  message?: string;
+  reason?: string;
+  rule_name?: string;
+  priority?: string;
+  type?: string;
+  alert_type?: string;
+  timestamp?: string;
+  acknowledged?: boolean;
+}
+
+export interface DeviceHealthSnapshot {
+  recorded_at: string;
+  cpu_percent: number;
+  ram_percent: number;
+  disk_percent?: number | null;
+  temperature?: number | null;
+}
+
 export interface Student {
   id: string;
   device_id: string;

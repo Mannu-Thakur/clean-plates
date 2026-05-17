@@ -57,7 +57,8 @@ export function statusTone(value: string | boolean | null | undefined) {
       'healthy',
       'delivered',
       'green',
-      'resolved'
+      'resolved',
+      'connected'
     ].includes(normalized)
   ) {
     return 'good';
@@ -70,7 +71,9 @@ export function statusTone(value: string | boolean | null | undefined) {
       'queued',
       'generating',
       'medium',
-      'level_1'
+      'level_1',
+      'connecting',
+      'reconnecting'
     ].includes(normalized)
   )
     return 'warn';
@@ -82,7 +85,9 @@ export function statusTone(value: string | boolean | null | undefined) {
       'offline',
       'revoked',
       'level_3',
-      'penalty'
+      'penalty',
+      'closed',
+      'error'
     ].includes(normalized)
   )
     return 'bad';

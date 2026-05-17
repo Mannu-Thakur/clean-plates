@@ -15,6 +15,7 @@
   import { api } from '$lib/api/client';
   import type { KpiOverview } from '$lib/api/types';
   import { ReconnectingSocket } from '$lib/api/ws';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
@@ -111,9 +112,13 @@
       '/dashboard',
       (message) => {
         if (
-          ['warning_issued', 'alert', 'rule_executed'].includes(
-            String(message.type)
-          )
+          [
+            'waste_entry',
+            'warning_issued',
+            'rule_executed',
+            'kpi_update',
+            'alert'
+          ].includes(String(message.type))
         )
           loadOverview();
       },
@@ -129,14 +134,12 @@
   <title>Overview | CleanPlates</title>
 </svelte:head>
 
-<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <p class="label">Global overview</p>
-    <h2 class="mt-1 text-2xl font-semibold text-body">
-      Institution-wide waste operations
-    </h2>
-  </div>
-  <div class="flex flex-wrap items-center gap-2">
+<PageHeader
+  label="Global overview"
+  title="Institution-wide waste operations"
+  description="Live KPIs, trend charts, and queueable reporting across the institution."
+>
+  <svelte:fragment slot="actions">
     <StatusBadge value={wsStatus} />
     <select
       class="select-field"
@@ -157,12 +160,16 @@
       <RefreshCw size={16} />
       Refresh
     </Button>
-    <Button on:click={exportOverview} id="btn-export-overview">
+    <Button
+      variant="secondary"
+      on:click={exportOverview}
+      id="btn-export-overview"
+    >
       <Download size={16} />
       Export
     </Button>
-  </div>
-</div>
+  </svelte:fragment>
+</PageHeader>
 
 {#if error}
   <Card title="Dashboard unavailable" description={error}>
@@ -171,7 +178,7 @@
 {:else if loading && !overview}
   <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
     {#each Array(10) as _}
-      <div class="card h-32 animate-pulse bg-elevated"></div>
+      <div class="skeleton h-32"></div>
     {/each}
   </div>
 {:else if overview}
@@ -180,7 +187,6 @@
       title="Waste Today"
       value={grams(overview.total_waste_today_grams)}
       helper="All meal sessions"
-      tone="good"
     >
       <svelte:fragment slot="icon"><Scale size={19} /></svelte:fragment>
     </StatCard>
@@ -260,6 +266,7 @@
     <ChartCard
       title="Weekly Waste Trend"
       chartType="line"
+      expandable
       labels={weekly.data.map((point) => point.label)}
       datasets={[
         {
@@ -272,6 +279,7 @@
     <ChartCard
       title="Monthly Comparison"
       chartType="bar"
+      expandable
       labels={(monthly.current_data ?? monthly.previous_data ?? []).map(
         (point) => point.label
       )}
@@ -289,6 +297,7 @@
     <ChartCard
       title="Meal Distribution"
       chartType="doughnut"
+      expandable
       labels={meals.data.map((item) => item.meal_type)}
       datasets={[
         { label: 'Waste', data: meals.data.map((item) => item.total_grams) }
@@ -297,6 +306,8 @@
     <ChartCard
       title="Top Wasted Foods"
       chartType="bar"
+      horizontal
+      expandable
       labels={foods.data.map((item) => item.food_name)}
       datasets={[
         { label: 'Waste', data: foods.data.map((item) => item.total_grams) }
