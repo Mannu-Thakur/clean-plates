@@ -8,26 +8,34 @@
   export let wide = false;
 
   const dispatch = createEventDispatcher<{ close: void }>();
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') dispatch('close');
+  }
 </script>
 
+<svelte:window on:keydown={open ? handleKeydown : undefined} />
+
 {#if open}
+  <!-- Backdrop -->
   <button
-    class="fixed inset-0 z-50 bg-ink/35"
+    class="fixed inset-0 z-50 bg-canvas/80 backdrop-blur-sm"
     type="button"
     aria-label="Close modal"
     on:click={() => dispatch('close')}
   ></button>
-  <div
-    class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4"
-  >
+
+  <!-- Panel -->
+  <div class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
     <section
-      class={`pointer-events-auto max-h-[90vh] w-full overflow-hidden rounded-lg bg-white shadow-soft ${wide ? 'max-w-5xl' : 'max-w-xl'}`}
+      class={`pointer-events-auto max-h-[90vh] w-full overflow-hidden card ${wide ? 'max-w-5xl' : 'max-w-xl'}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title}
     >
-      <header
-        class="flex items-start justify-between gap-4 border-b border-line px-5 py-4"
-      >
+      <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
         <div>
-          <h2 class="text-base font-semibold text-ink">{title}</h2>
+          <h2 class="text-base font-semibold text-body">{title}</h2>
           {#if description}
             <p class="mt-1 text-sm text-muted">{description}</p>
           {/if}

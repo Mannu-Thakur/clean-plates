@@ -7,41 +7,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design Tokens as CSS Custom Properties ─────────────────────── */
 :root {
-  color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  background: #edf2f6;
-  color: #172026;
+  --color-canvas:           #0b0e11;
+  --color-card:             #1e2329;
+  --color-elevated:         #2b3139;
+  --color-primary:          #fcd535;
+  --color-primary-hover:    #f0b90b;
+  --color-primary-disabled: #3a3a1f;
+  --color-body:             #eaecef;
+  --color-muted:            #707a8a;
+  --color-muted-strong:     #929aa5;
+  --color-border:           #2b3139;
+  --color-up:               #0ecb81;
+  --color-down:             #f6465d;
+  --color-info:             #3b82f6;
+  --color-ink:              #181a20;
+  --color-on-dark:          #ffffff;
 }
 
-* {
+/* ── Base resets ─────────────────────────────────────────────────── */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 html {
   min-width: 320px;
+  color-scheme: dark;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
-  background:
-    linear-gradient(
-      180deg,
-      rgba(237, 242, 246, 0.98),
-      rgba(245, 247, 250, 0.96)
-    ),
-    radial-gradient(
-      circle at top left,
-      rgba(24, 138, 107, 0.08),
-      transparent 34%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(22, 119, 168, 0.08),
-      transparent 28%
-    );
+  min-height: 100dvh;      /* dynamic viewport — avoids mobile browser chrome overflow */
+  background: #0b0e11;     /* flat canvas — NO gradient */
+  color: #eaecef;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -53,6 +57,7 @@ textarea {
 
 button {
   letter-spacing: 0;
+  cursor: pointer;
 }
 
 a {
@@ -65,28 +70,162 @@ table {
   width: 100%;
 }
 
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* ── Component utilities ─────────────────────────────────────────── */
 @layer components {
-  .surface {
-    @apply rounded-lg border border-line bg-panel shadow-soft;
+
+  /* ── Buttons ── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2
+           h-10 px-6 rounded-md text-sm font-semibold
+           bg-primary text-ink
+           transition-colors hover:bg-primary-hover
+           disabled:bg-primary-disabled disabled:text-muted disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           h-10 px-6 rounded-md text-sm font-semibold
+           bg-card text-body border border-border
+           transition-colors hover:bg-elevated hover:border-muted
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           h-10 px-4 rounded-md text-sm font-semibold text-muted
+           transition-colors hover:bg-elevated hover:text-body
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2
+           h-10 px-6 rounded-md text-sm font-semibold
+           bg-down text-on-dark
+           transition-colors hover:opacity-90
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-sm {
+    @apply h-8 px-4 text-xs;
   }
 
-  .field {
-    @apply min-h-10 rounded-md border border-line bg-field px-3 text-sm text-ink outline-none transition focus:border-fresh focus:ring-2 focus:ring-fresh/20 disabled:cursor-not-allowed disabled:opacity-60;
+  /* ── Cards & surfaces — NO box-shadow ── */
+  .card {
+    @apply bg-card border border-border rounded-lg;
+  }
+  .card-elevated {
+    @apply bg-elevated border border-border rounded-lg;
   }
 
+  /* ── Form elements ── */
+  .input-field {
+    @apply w-full h-10 px-3 rounded-md text-sm text-body
+           bg-elevated border border-border outline-none
+           placeholder:text-muted
+           focus:border-primary focus:shadow-ring-primary
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-colors;
+  }
+  .textarea-field {
+    @apply w-full px-3 py-2 rounded-md text-sm text-body
+           bg-elevated border border-border outline-none
+           placeholder:text-muted
+           focus:border-primary focus:shadow-ring-primary
+           disabled:opacity-50 resize-y min-h-[80px]
+           transition-colors;
+  }
+  .select-field {
+    @apply input-field pr-8 appearance-none bg-no-repeat cursor-pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23707a8a'%3E%3Cpath d='M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06l-3.25 3.25a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z'/%3E%3C/svg%3E");
+    background-position: right 8px center;
+    background-size: 16px;
+  }
+
+  /* ── Labels ── */
   .label {
-    @apply text-xs font-semibold uppercase tracking-normal text-muted;
+    @apply text-xs font-semibold uppercase tracking-wide text-muted;
+  }
+  .form-label {
+    @apply block text-sm font-medium text-muted-strong mb-1;
   }
 
-  .table-head {
-    @apply border-b border-line bg-slate-50 text-left text-xs font-semibold uppercase tracking-normal text-muted;
+  /* ── Tables ── */
+  .table-wrapper {
+    @apply card overflow-hidden;
+  }
+  .th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide
+           text-muted bg-elevated border-b border-border;
+  }
+  .td {
+    @apply px-4 py-3 text-sm text-body border-b border-border;
+  }
+  .tr-hover {
+    @apply hover:bg-elevated/50 transition-colors cursor-pointer;
   }
 
-  .table-cell {
-    @apply border-b border-line px-4 py-3 text-sm;
+  /* ── Badges ── */
+  .badge-up {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-up/10 text-up;
+  }
+  .badge-down {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-down/10 text-down;
+  }
+  .badge-muted {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-elevated text-muted border border-border;
+  }
+  .badge-primary {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-primary/10 text-primary;
+  }
+  .badge-info {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-info/10 text-info;
+  }
+  .badge-warn {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-sm text-xs font-semibold
+           bg-primary/10 text-primary;
   }
 
+  /* ── Icon button ── */
   .icon-btn {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-line bg-white text-ink transition hover:border-fresh hover:text-fresh disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center h-9 w-9 rounded-md
+           bg-card border border-border text-muted
+           transition-colors hover:bg-elevated hover:text-body
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* ── Nav items ── */
+  .nav-item {
+    @apply flex items-center gap-3 h-11 px-3 rounded-md text-sm font-semibold
+           text-muted transition-colors hover:bg-elevated hover:text-body;
+  }
+  .nav-item-active {
+    @apply bg-primary text-ink;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    @apply border-0 border-t border-border my-4;
+  }
+
+  /* ── Status dots ── */
+  .dot-up    { @apply inline-block w-2 h-2 rounded-full bg-up; }
+  .dot-down  { @apply inline-block w-2 h-2 rounded-full bg-down; }
+  .dot-warn  { @apply inline-block w-2 h-2 rounded-full bg-primary; }
+  .dot-muted { @apply inline-block w-2 h-2 rounded-full bg-muted; }
+
+  /* ── Skeleton loader ── */
+  .skeleton {
+    @apply bg-elevated animate-pulse rounded-md;
+  }
+
+  /* ── Page layout helpers ── */
+  .page-section {
+    @apply card p-5;
   }
 }

@@ -7,20 +7,15 @@
   $: tone = statusTone(value);
   $: label =
     typeof value === 'boolean'
-      ? value
-        ? 'Active'
-        : 'Inactive'
+      ? value ? 'Active' : 'Inactive'
       : titleCase(value ?? 'unknown');
+
   $: toneClass =
-    tone === 'good'
-      ? 'bg-fresh/10 text-fresh ring-fresh/20'
-      : tone === 'warn'
-        ? 'bg-amber/10 text-amber ring-amber/20'
-        : tone === 'bad'
-          ? 'bg-coral/10 text-coral ring-coral/20'
-          : tone === 'hot'
-            ? 'bg-orange-100 text-orange-700 ring-orange-200'
-            : 'bg-slate-100 text-slate-600 ring-slate-200';
+    tone === 'good'    ? 'bg-up/10 text-up ring-up/20' :
+    tone === 'warn'    ? 'bg-primary/10 text-primary ring-primary/20' :
+    tone === 'bad'     ? 'bg-down/10 text-down ring-down/20' :
+    tone === 'hot'     ? 'bg-primary/15 text-primary ring-primary/20' :
+                         'bg-elevated text-muted ring-border';
 </script>
 
 <span

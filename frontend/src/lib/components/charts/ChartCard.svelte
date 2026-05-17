@@ -3,6 +3,7 @@
   import Chart from 'chart.js/auto';
   import type { ChartDataset, ChartType } from 'chart.js';
   import Card from '$lib/components/ui/Card.svelte';
+  import { CHART_COLORS, fillOf } from '$lib/utils/chartDefaults';
 
   export let title: string;
   export let description = '';
@@ -15,15 +16,6 @@
   let chart: Chart | null = null;
   let signature = '';
 
-  const palette = [
-    '#188a6b',
-    '#1677a8',
-    '#c77700',
-    '#d95d54',
-    '#84a83b',
-    '#475467'
-  ];
-
   function render() {
     if (!canvas) return;
     chart?.destroy();
@@ -31,17 +23,17 @@
       type: chartType,
       data: {
         labels,
-        datasets: datasets.map((dataset, index) => ({
-          borderColor: palette[index % palette.length],
+        datasets: datasets.map((dataset, i) => ({
+          borderColor:     CHART_COLORS.series[i % CHART_COLORS.series.length],
           backgroundColor:
-            chartType === 'doughnut'
-              ? palette
-              : `${palette[index % palette.length]}26`,
-          tension: 0.35,
+            chartType === 'doughnut' || chartType === 'pie'
+              ? CHART_COLORS.series
+              : fillOf(CHART_COLORS.series[i % CHART_COLORS.series.length]),
+          tension:     0.35,
           borderWidth: 2,
           pointRadius: 3,
-          ...dataset
-        }))
+          ...dataset,
+        })),
       },
       options: {
         responsive: true,
@@ -50,21 +42,26 @@
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { boxWidth: 10, usePointStyle: true }
-          }
+            labels: { boxWidth: 10, usePointStyle: true, color: '#eaecef' },
+          },
         },
         scales:
           chartType === 'doughnut' || chartType === 'pie'
             ? {}
             : {
-                x: { grid: { display: false }, ticks: { color: '#667085' } },
+                x: {
+                  grid:  { display: false },
+                  ticks: { color: '#707a8a' },
+                  border: { color: '#2b3139' },
+                },
                 y: {
                   beginAtZero: true,
-                  grid: { color: '#edf2f6' },
-                  ticks: { color: '#667085' }
-                }
-              }
-      }
+                  grid:  { color: '#2b3139' },
+                  ticks: { color: '#707a8a' },
+                  border: { color: '#2b3139' },
+                },
+              },
+      },
     });
   }
 
