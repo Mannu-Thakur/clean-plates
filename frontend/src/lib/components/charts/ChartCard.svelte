@@ -27,7 +27,7 @@
           borderColor:     CHART_COLORS.series[i % CHART_COLORS.series.length],
           backgroundColor:
             chartType === 'doughnut' || chartType === 'pie'
-              ? CHART_COLORS.series
+              ? [...CHART_COLORS.series]
               : fillOf(CHART_COLORS.series[i % CHART_COLORS.series.length]),
           tension:     0.35,
           borderWidth: 2,

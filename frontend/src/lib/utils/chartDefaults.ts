@@ -9,9 +9,9 @@ export function applyDarkChartDefaults() {
   defaults.borderColor                        = '#2b3139';   // border — grid lines
   defaults.font.family                        = 'Inter, ui-sans-serif, system-ui, sans-serif';
   defaults.plugins.legend.labels.color        = '#eaecef';   // body — legend text
-  // @ts-expect-error Chart.js type gap for scale defaults
-  defaults.scale = {
-    ...(defaults.scale ?? {}),
+  // @ts-ignore scale type gap in defaults
+  (defaults as any).scale = {
+    ...((defaults as any).scale ?? {}),
     grid:  { color: '#2b3139' },
     ticks: { color: '#707a8a' },
   };
