@@ -16,6 +16,7 @@ uploads/
 reports/
 backups/
 logs/
+frontend-dev*.log
 
 # IDE
 .vscode/

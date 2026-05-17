@@ -1,0 +1,8 @@
+{
+  "name": "CleanPlates",
+  "short_name": "CleanPlates",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#edf2f6",
+  "theme_color": "#188a6b"
+}
