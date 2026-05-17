@@ -1,0 +1,12 @@
+tunnel: cleanplates
+credentials-file: /etc/cloudflared/credentials.json
+protocol: http2
+
+ingress:
+  - hostname: cleanplates.example.com
+    service: http://nginx:80
+    originRequest:
+      connectTimeout: 10s
+      noHappyEyeballs: false
+      httpHostHeader: cleanplates.example.com
+  - service: http_status:404

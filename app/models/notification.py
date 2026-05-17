@@ -13,6 +13,7 @@ from app.models.base import Base, created_at_col, updated_at_col, uuid_pk
 class NotificationModel(Base):
     __tablename__ = "notifications"
     __table_args__ = (
+        Index("ix_notifications_created_at", "created_at"),
         Index("ix_notifications_status_scheduled_at", "status", "scheduled_at"),
     )
 

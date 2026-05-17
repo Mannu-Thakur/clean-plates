@@ -17,6 +17,8 @@ reports/
 backups/
 logs/
 frontend-dev*.log
+frontend/.svelte-kit/
+frontend/build/
 
 # IDE
 .vscode/

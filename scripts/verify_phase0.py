@@ -1,5 +1,4 @@
 """Phase 0 verification tests — run with server at 127.0.0.1:8000."""
-import asyncio
 import sqlite3
 
 import httpx

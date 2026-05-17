@@ -95,8 +95,11 @@ def _build_pdf_sync(title: str, summary: dict[str, Any], rows: list[dict[str, An
     return HTML(string=document).write_pdf()
 
 
-async def write_pdf(path: str, title: str, summary: dict[str, Any], rows: list[dict[str, Any]]) -> int:
-    content = await asyncio.to_thread(_build_pdf_sync, title, summary, rows)
+def _write_file(path: str, content: bytes) -> int:
     with open(path, "wb") as handle:
         handle.write(content)
     return len(content)
+
+async def write_pdf(path: str, title: str, summary: dict[str, Any], rows: list[dict[str, Any]]) -> int:
+    content = await asyncio.to_thread(_build_pdf_sync, title, summary, rows)
+    return await asyncio.to_thread(_write_file, path, content)

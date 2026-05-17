@@ -1,31 +1,67 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-# ── H2-audit-fix: Staged DB restore ─────────────────────────────────────────
-# If a staged restore exists (from backup restore task), replace the main DB
-# before the app boots.
-if [ -f "./data/staging_restore.db" ]; then
-    echo "[entrypoint] Detected staging_restore.db — performing restore..."
+cd /app
 
-    # Remove old WAL/SHM files to prevent corruption
-    rm -f ./data/cleanplates.db-wal ./data/cleanplates.db-shm
+sqlite_path_from_url() {
+    local url="${DATABASE_URL:-sqlite+aiosqlite:///./data/cleanplates.db}"
+    local prefix="sqlite+aiosqlite:///"
 
-    # Replace main DB with restored copy
-    mv ./data/staging_restore.db ./data/cleanplates.db
+    if [[ "${url}" != "${prefix}"* ]]; then
+        echo ""
+        return 0
+    fi
 
-    # Remove lock file
-    rm -f ./data/restart.lock
+    local path="${url#${prefix}}"
+    if [[ "${path}" == ":memory:" ]]; then
+        echo ""
+        return 0
+    fi
 
-    echo "[entrypoint] Database restore complete."
+    if [[ "${path}" != /* ]]; then
+        path="/app/${path#./}"
+    fi
+    echo "${path}"
+}
+
+DB_PATH="$(sqlite_path_from_url)"
+if [[ -n "${DB_PATH}" ]]; then
+    DATA_DIR="$(dirname "${DB_PATH}")"
+else
+    DATA_DIR="/app/data"
 fi
 
-# ── Ensure required directories exist ────────────────────────────────────────
-mkdir -p data uploads reports backups logs
+UPLOAD_DIR="${UPLOAD_DIR:-/app/uploads}"
+REPORTS_DIR="${REPORTS_DIR:-/app/reports}"
+BACKUPS_DIR="${BACKUPS_DIR:-/app/backups}"
+LOGS_DIR="${LOGS_DIR:-/app/logs}"
+STAGING_PATH="${DATA_DIR}/staging_restore.db"
+LOCK_PATH="${DATA_DIR}/restart.lock"
 
-# ── Run Alembic migrations ───────────────────────────────────────────────────
-echo "[entrypoint] Running database migrations..."
-alembic upgrade head
+mkdir -p "${DATA_DIR}" "${UPLOAD_DIR}" "${REPORTS_DIR}" "${BACKUPS_DIR}" "${LOGS_DIR}"
 
-# ── Start the application ───────────────────────────────────────────────────
-echo "[entrypoint] Starting application..."
+if [[ -f "${STAGING_PATH}" ]]; then
+    if [[ -z "${DB_PATH}" ]]; then
+        echo "[entrypoint] Restore staged, but DATABASE_URL is not a file-backed SQLite URL."
+        exit 1
+    fi
+
+    echo "[entrypoint] Detected staged restore at ${STAGING_PATH}; replacing ${DB_PATH}."
+    rm -f "${DB_PATH}-wal" "${DB_PATH}-shm"
+    mv "${STAGING_PATH}" "${DB_PATH}"
+    rm -f "${LOCK_PATH}"
+    echo "[entrypoint] Database restore complete."
+elif [[ -f "${LOCK_PATH}" ]]; then
+    echo "[entrypoint] Removing stale restart lock at ${LOCK_PATH}; no staged DB was present."
+    rm -f "${LOCK_PATH}"
+fi
+
+if [[ "${RUN_MIGRATIONS:-true}" == "true" ]]; then
+    echo "[entrypoint] Running database migrations..."
+    alembic upgrade head
+else
+    echo "[entrypoint] Skipping migrations because RUN_MIGRATIONS=${RUN_MIGRATIONS:-false}."
+fi
+
+echo "[entrypoint] Starting: $*"
 exec "$@"

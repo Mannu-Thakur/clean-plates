@@ -1,0 +1,18 @@
+[Unit]
+Description=CleanPlates production stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/cleanplates
+RemainAfterExit=yes
+TimeoutStartSec=0
+ExecStartPre=/usr/bin/install -d -o 10001 -g 10001 /opt/cleanplates/data /opt/cleanplates/uploads /opt/cleanplates/reports /opt/cleanplates/backups /opt/cleanplates/logs
+ExecStartPre=/bin/test -f /opt/cleanplates/.env
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,146 @@
+name: cleanplates
+
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile.prod
+  target: app
+
+x-app-volumes: &app-volumes
+  - ./data:/app/data
+  - ./uploads:/app/uploads
+  - ./reports:/app/reports
+  - ./backups:/app/backups
+  - ./logs:/app/logs
+
+x-app-security: &app-security
+  security_opt:
+    - no-new-privileges:true
+  read_only: true
+  tmpfs:
+    - /tmp:size=256m,noexec,nosuid,nodev
+
+services:
+  fastapi:
+    build: *app-build
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DATABASE_URL: sqlite+aiosqlite:///./data/cleanplates.db
+      REDIS_URL: redis://redis:6379
+      RUN_MIGRATIONS: "true"
+    command:
+      - sh
+      - -c
+      - >
+        uvicorn app.main:app
+        --host 0.0.0.0
+        --port 8000
+        --workers $${UVICORN_WORKERS:-2}
+        --proxy-headers
+        --forwarded-allow-ips="*"
+    volumes: *app-volumes
+    expose:
+      - "8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()"
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    <<: *app-security
+
+  arq:
+    build: *app-build
+    env_file:
+      - .env
+    environment:
+      DEBUG: "false"
+      DATABASE_URL: sqlite+aiosqlite:///./data/cleanplates.db
+      REDIS_URL: redis://redis:6379
+      RUN_MIGRATIONS: "false"
+    command:
+      - arq
+      - app.workers.arq_settings.WorkerSettings
+    volumes: *app-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+      fastapi:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+    <<: *app-security
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1"
+      - --loglevel
+      - warning
+    volumes:
+      - redis-data:/data
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      target: nginx
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ./uploads:/var/www/uploads:ro
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --config
+      - /etc/cloudflared/config.yml
+      - run
+    volumes:
+      - ./cloudflare:/etc/cloudflared:ro
+    depends_on:
+      nginx:
+        condition: service_healthy
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  redis-data:

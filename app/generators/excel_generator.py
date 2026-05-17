@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import zipfile
 from typing import Any
@@ -92,9 +93,12 @@ def build_excel_bytes(headers: list[str], rows: list[dict[str, Any]]) -> bytes:
     workbook.save(output)
     return output.getvalue()
 
-
-async def write_excel(path: str, headers: list[str], rows: list[dict[str, Any]]) -> int:
-    content = build_excel_bytes(headers, rows)
+def _write_file(path: str, content: bytes) -> int:
     with open(path, "wb") as handle:
         handle.write(content)
     return len(content)
+
+
+async def write_excel(path: str, headers: list[str], rows: list[dict[str, Any]]) -> int:
+    content = await asyncio.to_thread(build_excel_bytes, headers, rows)
+    return await asyncio.to_thread(_write_file, path, content)

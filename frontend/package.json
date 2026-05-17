@@ -17,7 +17,7 @@
     "chart.js": "^4.4.7"
   },
   "devDependencies": {
-    "@sveltejs/adapter-auto": "^3.3.1",
+    "@sveltejs/adapter-static": "^3.0.9",
     "@sveltejs/kit": "^2.15.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@types/node": "^25.8.0",
@@ -30,5 +30,8 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
+  },
+  "overrides": {
+    "cookie": "^0.7.2"
   }
 }

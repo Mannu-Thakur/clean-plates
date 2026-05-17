@@ -103,6 +103,6 @@ class WorkerSettings:
     on_startup = on_startup
     on_shutdown = on_shutdown
     # P6-fix: SQLite lock resilience — retry failed jobs up to 3 times
-    # with a 1-second delay before marking as permanently failed.
+    # before marking as permanently failed. Per-job retry delay is handled
+    # via `raise Retry(defer=2)` on OperationalError in individual workers.
     max_tries = 3
-    retry_failed_delay = 1

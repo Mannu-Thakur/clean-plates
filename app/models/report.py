@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, JSON, String
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, created_at_col, uuid_pk
@@ -12,6 +12,7 @@ from app.models.base import Base, created_at_col, uuid_pk
 
 class ReportModel(Base):
     __tablename__ = "reports"
+    __table_args__ = (Index("ix_reports_created_at", "created_at"),)
 
     id: Mapped[str] = uuid_pk()
     type: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
@@ -31,6 +32,7 @@ class ReportModel(Base):
 
 class ReportScheduleModel(Base):
     __tablename__ = "report_schedules"
+    __table_args__ = (Index("ix_report_schedules_active_next_run", "active", "next_run"),)
 
     id: Mapped[str] = uuid_pk()
     report_type: Mapped[str] = mapped_column(String(30), nullable=False)
