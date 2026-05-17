@@ -191,6 +191,45 @@ async def _dispatch_penalty_event(
     )
 
 
+async def _queue_student_email_notification(
+    db: AsyncSession,
+    *,
+    student_id: str,
+    subject: str,
+    body_html: str,
+    notif_type: str,
+    related_entity_type: str,
+    related_entity_id: str,
+) -> str | None:
+    from app.services import notification_service
+
+    created = await notification_service.create_system_notification(
+        db,
+        notif_type=notif_type,
+        channel="email",
+        subject=subject,
+        body=body_html,
+        recipient_type="individual",
+        recipient_ids=[student_id],
+        related_entity_type=related_entity_type,
+        related_entity_id=related_entity_id,
+    )
+    return created.notification.id if created.recipient_count else None
+
+
+async def _dispatch_notification_after_commit(
+    db: AsyncSession,
+    notification_id: str | None,
+    *,
+    arq_pool: ArqRedis | None,
+) -> None:
+    if not notification_id:
+        return
+    from app.services import notification_service
+
+    await notification_service.enqueue_or_dispatch_notification(db, notification_id=notification_id, arq_pool=arq_pool)
+
+
 async def _increment_warning_count(db: AsyncSession, student_id: str) -> None:
     await db.execute(
         update(StudentModel).where(StudentModel.id == student_id).values(warning_count=StudentModel.warning_count + 1)
@@ -344,8 +383,17 @@ async def create_warning(
     await _increment_warning_count(db, student_id)
     await _refresh_student_status(db, student_id)
 
+    notification_id = None
     if body.send_email:
-        pass  # TODO: Wire EmailService in Phase 6
+        notification_id = await _queue_student_email_notification(
+            db,
+            student_id=student_id,
+            subject=f"CleanPlates warning: {warning.level}",
+            body_html=f"<p>A warning has been issued for your account.</p><p>{warning.reason}</p>",
+            notif_type="warning",
+            related_entity_type="warning",
+            related_entity_id=warning.id,
+        )
 
     await audit_service.log(
         db,
@@ -360,6 +408,7 @@ async def create_warning(
     # P2-fix: commit before enqueue so the ARQ worker (separate process)
     # can read the warning row when it picks up the job immediately.
     await db.commit()
+    await _dispatch_notification_after_commit(db, notification_id, arq_pool=arq_pool)
     await _dispatch_warning_event(db, warning, arq_pool=arq_pool, event_depth=event_depth)
     return await _warning_schema(db, warning)
 
@@ -494,6 +543,15 @@ async def apply_penalty(
     await _decrement_warning_count(db, warning.student_id)
     await _increment_penalty_count(db, warning.student_id)
     await _refresh_student_status(db, warning.student_id)
+    notification_id = await _queue_student_email_notification(
+        db,
+        student_id=warning.student_id,
+        subject="CleanPlates penalty applied",
+        body_html=f"<p>A penalty has been applied from a warning.</p><p>{penalty.reason}</p>",
+        notif_type="penalty",
+        related_entity_type="penalty",
+        related_entity_id=penalty.id,
+    )
 
     await audit_service.log(
         db,
@@ -508,6 +566,7 @@ async def apply_penalty(
     )
     # P2-fix: commit before enqueue so the ARQ worker can read the penalty row.
     await db.commit()
+    await _dispatch_notification_after_commit(db, notification_id, arq_pool=arq_pool)
     await _dispatch_penalty_event(penalty, arq_pool=arq_pool, event_depth=event_depth)
     return await _penalty_schema(db, penalty)
 
@@ -537,8 +596,17 @@ async def create_penalty_direct(
     await _increment_penalty_count(db, student_id)
     await _refresh_student_status(db, student_id)
 
+    notification_id = None
     if body.send_email:
-        pass  # TODO: Wire EmailService in Phase 6
+        notification_id = await _queue_student_email_notification(
+            db,
+            student_id=student_id,
+            subject="CleanPlates penalty applied",
+            body_html=f"<p>A penalty has been applied to your account.</p><p>{penalty.reason}</p>",
+            notif_type="penalty",
+            related_entity_type="penalty",
+            related_entity_id=penalty.id,
+        )
 
     await audit_service.log(
         db,
@@ -552,6 +620,7 @@ async def create_penalty_direct(
     )
     # P2-fix: commit before enqueue so the ARQ worker can read the penalty row.
     await db.commit()
+    await _dispatch_notification_after_commit(db, notification_id, arq_pool=arq_pool)
     await _dispatch_penalty_event(penalty, arq_pool=arq_pool, event_depth=event_depth)
     return await _penalty_schema(db, penalty)
 

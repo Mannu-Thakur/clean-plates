@@ -6,6 +6,7 @@ Ref: 02-controllers.md §1
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,8 +42,8 @@ async def get_me(current_user: UserSchema) -> UserSchema:
     return current_user
 
 
-async def forgot_password(body: ForgotPasswordSchema, db: AsyncSession) -> None:
-    await auth_service.request_password_reset(db, body.email)
+async def forgot_password(body: ForgotPasswordSchema, db: AsyncSession, arq_pool: ArqRedis | None = None) -> None:
+    await auth_service.request_password_reset(db, body.email, arq_pool=arq_pool)
 
 
 async def reset_password(body: ResetPasswordSchema, db: AsyncSession) -> None:

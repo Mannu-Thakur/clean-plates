@@ -55,9 +55,9 @@ def _utcnow() -> datetime:
     return datetime.utcnow()  # noqa: DTZ003
 
 
-def create_access_token(user_id: str, role: str) -> tuple[str, int]:
+def create_access_token(user_id: str, role: str, expires_minutes: int | None = None) -> tuple[str, int]:
     """Return (encoded_jwt, expires_in_seconds)."""
-    expires_delta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expires_delta = timedelta(minutes=expires_minutes or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     # JWT exp uses aware datetime (jose library handles it correctly)
     expire = datetime.now(timezone.utc) + expires_delta
     payload = {
@@ -71,14 +71,15 @@ def create_access_token(user_id: str, role: str) -> tuple[str, int]:
     return token, int(expires_delta.total_seconds())
 
 
-def create_refresh_token(user_id: str) -> tuple[str, datetime]:
+def create_refresh_token(user_id: str, expires_days: int | None = None) -> tuple[str, datetime]:
     """Return (encoded_jwt, expires_at_naive_utc).
 
     expires_at is naive UTC for direct SQLite storage.
     """
-    expires_at_naive = _utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    days = expires_days or settings.REFRESH_TOKEN_EXPIRE_DAYS
+    expires_at_naive = _utcnow() + timedelta(days=days)
     # JWT uses aware datetime internally
-    expires_at_aware = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    expires_at_aware = datetime.now(timezone.utc) + timedelta(days=days)
     payload = {
         "sub": str(user_id),
         "type": "refresh",

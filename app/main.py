@@ -103,6 +103,10 @@ from app.routers.warnings import router as warnings_router  # noqa: E402
 from app.routers.waste import router as waste_router  # noqa: E402
 from app.routers.analytics import router as analytics_router  # noqa: E402
 from app.routers.filter_presets import router as filter_presets_router  # noqa: E402
+from app.routers.notifications import router as notifications_router  # noqa: E402
+from app.routers.templates import router as templates_router  # noqa: E402
+from app.routers.config import router as config_router  # noqa: E402
+from app.routers.reports import router as reports_router  # noqa: E402
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api/v1")
@@ -114,3 +118,7 @@ app.include_router(warnings_router, prefix="/api/v1")
 app.include_router(rules_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(filter_presets_router, prefix="/api/v1")
+app.include_router(notifications_router, prefix="/api/v1")
+app.include_router(templates_router, prefix="/api/v1")
+app.include_router(config_router, prefix="/api/v1")
+app.include_router(reports_router, prefix="/api/v1")

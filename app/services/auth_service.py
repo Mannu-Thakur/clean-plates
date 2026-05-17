@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+from arq.connections import ArqRedis
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,7 @@ from app.core.security import (
 )
 from app.models.user import RefreshTokenModel, UserModel
 from app.schemas.auth import LoginResponseSchema, TokenPairSchema, UserSchema
-from app.services import audit_service
+from app.services import audit_service, config_service
 
 
 def _utcnow() -> datetime:
@@ -38,13 +39,12 @@ async def authenticate(
     ip_address: str | None = None,
     user_agent: str | None = None,
 ) -> LoginResponseSchema:
-    """Validate credentials and return JWT pair + user profile.
-
-    ⚠ F6-fix: Lockout settings should eventually read from
-    config_service.get_config("security") instead of hardcoded settings.
-    For Phase 1, we use the Settings defaults.
-    """
-    from app.core.config import settings
+    """Validate credentials and return JWT pair + user profile."""
+    security_config = await config_service.get_config(db, "security")
+    max_attempts = int(security_config.get("max_login_attempts", 5))
+    lockout_minutes = int(security_config.get("lockout_duration_minutes", 15))
+    access_minutes = int(security_config.get("access_token_expiry_minutes", 60))
+    refresh_days = int(security_config.get("refresh_token_expiry_days", 7))
 
     result = await db.execute(select(UserModel).where(UserModel.email == email))
     user = result.scalar_one_or_none()
@@ -65,10 +65,8 @@ async def authenticate(
         user.failed_login_attempts += 1
 
         # Lock account if max attempts exceeded
-        if user.failed_login_attempts >= settings.MAX_LOGIN_ATTEMPTS:
-            user.locked_until = _utcnow() + timedelta(
-                minutes=settings.LOCKOUT_DURATION_MINUTES
-            )
+        if user.failed_login_attempts >= max_attempts:
+            user.locked_until = _utcnow() + timedelta(minutes=lockout_minutes)
 
         await db.flush()
         raise ValueError("Invalid email or password")
@@ -79,8 +77,8 @@ async def authenticate(
     user.last_login = _utcnow()
 
     # Issue tokens
-    access_token, expires_in = create_access_token(user.id, user.role)
-    refresh_token, refresh_expires_at = create_refresh_token(user.id)
+    access_token, expires_in = create_access_token(user.id, user.role, expires_minutes=access_minutes)
+    refresh_token, refresh_expires_at = create_refresh_token(user.id, expires_days=refresh_days)
 
     # Store refresh token hash
     db.add(RefreshTokenModel(
@@ -118,8 +116,16 @@ async def authenticate(
 
 async def issue_tokens(user: UserModel, db: AsyncSession) -> TokenPairSchema:
     """Issue a fresh access + refresh token pair for a user."""
-    access_token, expires_in = create_access_token(user.id, user.role)
-    refresh_token, refresh_expires_at = create_refresh_token(user.id)
+    security_config = await config_service.get_config(db, "security")
+    access_token, expires_in = create_access_token(
+        user.id,
+        user.role,
+        expires_minutes=int(security_config.get("access_token_expiry_minutes", 60)),
+    )
+    refresh_token, refresh_expires_at = create_refresh_token(
+        user.id,
+        expires_days=int(security_config.get("refresh_token_expiry_days", 7)),
+    )
 
     db.add(RefreshTokenModel(
         user_id=user.id,
@@ -189,12 +195,8 @@ async def revoke_token(db: AsyncSession, refresh_token_str: str, user_id: str) -
     )
 
 
-async def request_password_reset(db: AsyncSession, email: str) -> None:
-    """Generate a password reset token and store its hash.
-
-    NOTE: Email dispatch is stubbed until Phase 6 (EmailService).
-    The reset token is still generated and stored; only email is deferred.
-    """
+async def request_password_reset(db: AsyncSession, email: str, *, arq_pool: ArqRedis | None = None) -> None:
+    """Generate a password reset token, store its hash, and dispatch reset email."""
     result = await db.execute(select(UserModel).where(UserModel.email == email))
     user = result.scalar_one_or_none()
 
@@ -208,14 +210,31 @@ async def request_password_reset(db: AsyncSession, email: str) -> None:
 
     await db.flush()
 
-    # TODO: Wire EmailService in Phase 6 — send raw_token to user.email
-    # email_service.send_email(to=user.email, subject="Password Reset", ...)
+    subject = "CleanPlates password reset"
+    body_html = (
+        "<p>A password reset was requested for your CleanPlates account.</p>"
+        f"<p>Use this reset token within 1 hour:</p><p><strong>{raw_token}</strong></p>"
+        "<p>If you did not request this, you can ignore this email.</p>"
+    )
+    if arq_pool is not None:
+        await db.commit()
+        await arq_pool.enqueue_job("send_email_task", user.email, subject, body_html)
+    else:
+        from app.services import email_service
+
+        await email_service.send_email(user.email, subject, body_html)
 
 
 async def reset_password(db: AsyncSession, token: str, new_password: str) -> None:
     """Verify reset token → hash new password → clear token."""
-    if len(new_password) < 8:
-        raise ValueError("Password must be at least 8 characters")
+    security_config = await config_service.get_config(db, "security")
+    min_length = int(security_config.get("min_password_length", 8))
+    if len(new_password) < min_length:
+        raise ValueError(f"Password must be at least {min_length} characters")
+    if security_config.get("require_uppercase", True) and not any(char.isupper() for char in new_password):
+        raise ValueError("Password must include an uppercase letter")
+    if security_config.get("require_numbers", True) and not any(char.isdigit() for char in new_password):
+        raise ValueError("Password must include a number")
 
     hashed_token = hash_token(token)
     result = await db.execute(

@@ -15,10 +15,23 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.config import ConfigModel
+from app.schemas.auth import UserSchema
+from app.schemas.config import (
+    AppearanceConfigSchema,
+    BranchSchema,
+    DeviceConfigSchema,
+    InstitutionConfigSchema,
+    MealTimingSchema,
+    SecurityConfigSchema,
+    SystemPolicySchema,
+    ThresholdSchema,
+)
+from app.services import audit_service
 
 # ── Section defaults (used when DB has no rows yet) ──────────────────────────
 _SECTION_DEFAULTS: dict[str, dict[str, Any]] = {
@@ -81,6 +94,39 @@ _SECTION_DEFAULTS: dict[str, dict[str, Any]] = {
     },
 }
 
+_SECTION_SCHEMAS = {
+    "institution": InstitutionConfigSchema,
+    "thresholds": ThresholdSchema,
+    "system": SystemPolicySchema,
+    "device": DeviceConfigSchema,
+    "appearance": AppearanceConfigSchema,
+    "security": SecurityConfigSchema,
+}
+
+
+def _audit_user(current_user: UserSchema | None) -> dict:
+    if current_user is None:
+        return {}
+    return {"user_id": current_user.id, "user_name": current_user.name, "user_role": current_user.role}
+
+
+def _validate_section(section: str, data: dict[str, Any]) -> dict[str, Any]:
+    section = section.strip().lower()
+    if section == "meals":
+        timings = data.get("timings") if isinstance(data, dict) else data if isinstance(data, list) else None
+        if not isinstance(timings, list):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="meals config requires a timings list")
+        return {"timings": [MealTimingSchema.model_validate(item).model_dump() for item in timings]}
+    if section == "branches":
+        items = data.get("items") if isinstance(data, dict) else data if isinstance(data, list) else None
+        if not isinstance(items, list):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="branches config requires an items list")
+        return {"items": [BranchSchema.model_validate(item).model_dump() for item in items]}
+    schema = _SECTION_SCHEMAS.get(section)
+    if schema is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown config section '{section}'")
+    return schema.model_validate(data).model_dump()
+
 
 async def get_config(db: AsyncSession, section: str) -> dict[str, Any]:
     """Retrieve all key-value pairs for a config section.
@@ -133,3 +179,82 @@ async def reset_section(db: AsyncSession, section: str, updated_by: str | None =
     defaults = _SECTION_DEFAULTS.get(section, {})
     await set_config(db, section, defaults, updated_by=updated_by)
     return defaults
+
+
+async def update_config(
+    db: AsyncSession,
+    section: str,
+    data: dict[str, Any],
+    *,
+    current_user: UserSchema,
+) -> dict[str, Any]:
+    """Validate and update a config section, then audit the change."""
+    section = section.strip().lower()
+    before = await get_config(db, section)
+    validated = _validate_section(section, data)
+    await set_config(db, section, validated, updated_by=current_user.id)
+    after = await get_config(db, section)
+    await audit_service.log(
+        db,
+        event_type="config.updated",
+        action="update",
+        resource_type="config",
+        resource_id=section,
+        summary=f"Updated {section} configuration",
+        before_state=before,
+        after_state=after,
+        **_audit_user(current_user),
+    )
+    return after
+
+
+async def reset_defaults(db: AsyncSession, section: str, *, current_user: UserSchema) -> dict[str, Any]:
+    section = section.strip().lower()
+    if section not in _SECTION_DEFAULTS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown config section '{section}'")
+    before = await get_config(db, section)
+    defaults = await reset_section(db, section, updated_by=current_user.id)
+    await audit_service.log(
+        db,
+        event_type="config.reset",
+        action="reset",
+        resource_type="config",
+        resource_id=section,
+        summary=f"Reset {section} configuration to defaults",
+        before_state=before,
+        after_state=defaults,
+        **_audit_user(current_user),
+    )
+    return defaults
+
+
+async def get_meal_timings(db: AsyncSession) -> list[dict[str, Any]]:
+    config = await get_config(db, "meals")
+    return list(config.get("timings") or [])
+
+
+async def update_meal_timings(
+    db: AsyncSession,
+    timings: list[MealTimingSchema],
+    *,
+    current_user: UserSchema,
+) -> list[dict[str, Any]]:
+    data = {"timings": [item.model_dump() for item in timings]}
+    await update_config(db, "meals", data, current_user=current_user)
+    return data["timings"]
+
+
+async def get_branches(db: AsyncSession) -> list[dict[str, Any]]:
+    config = await get_config(db, "branches")
+    return list(config.get("items") or [])
+
+
+async def update_branches(
+    db: AsyncSession,
+    branches: list[BranchSchema],
+    *,
+    current_user: UserSchema,
+) -> list[dict[str, Any]]:
+    data = {"items": [item.model_dump() for item in branches]}
+    await update_config(db, "branches", data, current_user=current_user)
+    return data["items"]

@@ -32,6 +32,10 @@ dependencies = [
     "structlog>=24.1.0",
     "python-dateutil>=2.9.0",
     "tzdata>=2024.1",
+    "aiosmtplib>=3.0.0",
+    "jinja2>=3.1.0",
+    "openpyxl>=3.1.0",
+    "weasyprint>=61.0",
 ]
 
 [project.optional-dependencies]

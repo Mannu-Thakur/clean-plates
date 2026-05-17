@@ -18,6 +18,9 @@ from app.models.warning import EscalationModel, PenaltyModel, WarningModel
 from app.models.waste import WasteEntryModel
 from app.models.aggregated_waste import AggregatedWasteModel
 from app.models.filter_preset import FilterPresetModel
+from app.models.notification import EmailTemplateModel, NotificationDeliveryModel, NotificationModel
+from app.models.report import ReportModel, ReportScheduleModel
+from app.models.backup import BackupModel
 
 __all__ = [
     "Base",
@@ -39,4 +42,10 @@ __all__ = [
     "PenaltyModel",
     "AggregatedWasteModel",
     "FilterPresetModel",
+    "NotificationModel",
+    "NotificationDeliveryModel",
+    "EmailTemplateModel",
+    "ReportModel",
+    "ReportScheduleModel",
+    "BackupModel",
 ]

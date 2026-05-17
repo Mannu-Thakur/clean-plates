@@ -89,9 +89,13 @@ def _local_today(tz: tzinfo) -> date:
 
 
 def _entry_local_datetime(entry: WasteEntryModel, tz: tzinfo) -> datetime:
-    """Convert entry timestamp to local tz. Naive timestamps are assumed UTC."""
+    """Return entry timestamp in institution local time.
+
+    SQLite strips timezone info and the ingestion path stores meal timestamps as
+    local wall time, so naive datetimes are treated as already-local values.
+    """
     if entry.timestamp.tzinfo is None:
-        return entry.timestamp.replace(tzinfo=UTC).astimezone(tz)
+        return entry.timestamp.replace(tzinfo=tz)
     return entry.timestamp.astimezone(tz)
 
 
@@ -883,4 +887,3 @@ async def get_sustainability_scores(
         poor_count=sum(1 for score in scores if score < 50),
         overall_avg=_round(sum(scores) / len(scores) if scores else 0.0),
     )
-

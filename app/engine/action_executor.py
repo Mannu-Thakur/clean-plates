@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.student import StudentModel
+from app.models.student import StudentMappingModel, StudentModel
 from app.models.warning import WarningModel
 from app.schemas.warnings import EscalateWarningSchema, PenaltyCreateSchema, WarningCreateSchema
 from app.services import audit_service, warning_service
@@ -107,20 +107,51 @@ class ActionExecutor:
         params: dict[str, Any],
         context: dict[str, Any],
         db: AsyncSession,
-        arq_pool: ArqRedis | None,  # noqa: ARG002
+        arq_pool: ArqRedis | None,
     ) -> ActionResult:
+        recipient = params.get("recipient_override") or params.get("to")
+        student_id = context.get("student_id")
+        if not recipient and student_id:
+            result = await db.execute(select(StudentMappingModel.email).where(StudentMappingModel.student_id == str(student_id)))
+            recipient = result.scalar_one_or_none()
+        if not recipient:
+            raise ValueError("send_email requires a recipient email or mapped student email")
+
+        subject = params.get("subject") or f"CleanPlates rule alert: {context.get('rule_name', 'Rule triggered')}"
+        body_html = params.get("body_html") or params.get("body") or (
+            f"<p>Rule '{context.get('rule_name', 'Unnamed rule')}' triggered for your account.</p>"
+        )
+        template_id = params.get("template_id")
+        context_data = {
+            **dict(context),
+            **dict(params.get("context") or {}),
+            "student_id": student_id,
+        }
+        if arq_pool is not None:
+            await arq_pool.enqueue_job("send_email_task", str(recipient), subject, body_html, template_id, context_data)
+        else:
+            from app.services import email_service
+
+            if template_id:
+                rendered = await email_service.render_template(db, str(template_id), context_data)
+                subject = rendered["subject"]
+                body_html = rendered["body_html"]
+            send_result = await email_service.send_email(str(recipient), subject, body_html)
+            if not send_result.success:
+                raise ValueError(send_result.error or "Email delivery failed")
+
         await audit_service.log(
             db,
-            event_type="rule.email_stubbed",
+            event_type="rule.email_queued",
             action="send_email",
             resource_type="rule",
             resource_id=str(context.get("rule_id")) if context.get("rule_id") else None,
-            summary="Rule email action deferred until Phase 6",
+            summary="Queued rule email action",
             metadata={
                 "student_id": context.get("student_id"),
-                "template_id": params.get("template_id"),
-                "subject": params.get("subject"),
-                "recipient_override": params.get("recipient_override"),
+                "template_id": template_id,
+                "subject": subject,
+                "recipient": str(recipient),
             },
         )
         return ActionResult(action_type="send_email", success=True)

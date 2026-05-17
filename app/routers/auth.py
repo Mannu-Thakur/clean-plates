@@ -6,10 +6,12 @@ Ref: 03-routes.md §1 — Prefix: /auth
 
 from __future__ import annotations
 
+from arq.connections import ArqRedis
 from fastapi import APIRouter, Depends, Request
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import get_arq_pool
 from app.middleware.auth import get_current_user
 from app.middleware.db import get_db_session
 from app.schemas.auth import (
@@ -62,9 +64,13 @@ async def get_me(current_user: UserSchema = Depends(get_current_user)):
 
 
 @router.post("/forgot-password", response_model=MessageSchema)
-async def forgot_password(body: ForgotPasswordSchema, db: AsyncSession = Depends(get_db_session)):
-    """Send password reset email (email dispatch stubbed until Phase 6)."""
-    await auth_service.request_password_reset(db, body.email)
+async def forgot_password(
+    body: ForgotPasswordSchema,
+    db: AsyncSession = Depends(get_db_session),
+    arq_pool: ArqRedis | None = Depends(get_arq_pool),
+):
+    """Send password reset email."""
+    await auth_service.request_password_reset(db, body.email, arq_pool=arq_pool)
     return MessageSchema(message="If that email exists, a reset link has been sent")
 
 
