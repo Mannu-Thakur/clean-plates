@@ -102,58 +102,62 @@
 
 <ToastHost />
 
-<main class="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
+<main
+  class="grid min-h-screen bg-canvas text-body lg:grid-cols-[1.05fr_0.95fr]"
+>
   <section
-    class="flex min-h-screen flex-col justify-between bg-ink p-6 text-white lg:p-10"
+    class="hidden min-h-screen flex-col justify-between border-r border-border bg-card p-6 lg:flex lg:p-10"
   >
     <div class="flex items-center gap-3">
-      <div class="grid h-11 w-11 place-items-center rounded-md bg-fresh">
+      <div
+        class="grid h-11 w-11 place-items-center rounded-md bg-primary text-ink"
+      >
         <Utensils size={22} />
       </div>
       <div>
-        <h1 class="text-xl font-semibold">CleanPlates</h1>
-        <p class="text-sm text-white/68">Institutional food waste monitoring</p>
+        <h1 class="text-xl font-semibold text-body">CleanPlates</h1>
+        <p class="text-sm text-muted">Institutional food waste monitoring</p>
       </div>
     </div>
 
     <div class="max-w-xl py-12">
       <div
-        class="mb-6 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-3 py-1 text-sm"
+        class="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-elevated px-3 py-1 text-sm text-muted"
       >
         <Server size={15} />
         Backend
         <StatusBadge value={health} compact />
       </div>
-      <h2 class="text-4xl font-semibold leading-tight">
+      <h2 class="text-4xl font-semibold leading-tight text-body">
         Operational dashboard for cleaner meal service.
       </h2>
-      <p class="mt-4 max-w-lg text-base leading-7 text-white/72">
+      <p class="mt-4 max-w-lg text-base leading-7 text-muted-strong">
         Review live waste entries, student patterns, devices, reports, and
-        enforcement rules from one connected control surface.
+        enforcement rules from one connected control center.
       </p>
     </div>
 
     <div class="grid grid-cols-3 gap-3 text-sm">
-      <div class="rounded-lg border border-white/12 bg-white/7 p-3">
-        <p class="font-semibold">Live feed</p>
-        <p class="mt-1 text-white/60">WebSocket ready</p>
+      <div class="rounded-lg border border-border bg-elevated p-3">
+        <p class="font-semibold text-primary">Live feed</p>
+        <p class="mt-1 text-muted">WebSocket ready</p>
       </div>
-      <div class="rounded-lg border border-white/12 bg-white/7 p-3">
-        <p class="font-semibold">JWT session</p>
-        <p class="mt-1 text-white/60">Auto refresh</p>
+      <div class="rounded-lg border border-border bg-elevated p-3">
+        <p class="font-semibold text-primary">JWT session</p>
+        <p class="mt-1 text-muted">Auto refresh</p>
       </div>
-      <div class="rounded-lg border border-white/12 bg-white/7 p-3">
-        <p class="font-semibold">RBAC</p>
-        <p class="mt-1 text-white/60">Role aware</p>
+      <div class="rounded-lg border border-border bg-elevated p-3">
+        <p class="font-semibold text-primary">RBAC</p>
+        <p class="mt-1 text-muted">Role aware</p>
       </div>
     </div>
   </section>
 
   <section class="flex min-h-screen items-center justify-center px-4 py-10">
-    <div class="surface w-full max-w-md p-6 sm:p-8">
+    <div class="card w-full max-w-md p-6 sm:p-8">
       {#if expired}
         <div
-          class="mb-5 rounded-md border border-amber/30 bg-amber/10 px-4 py-3 text-sm text-amber"
+          class="mb-5 rounded-md border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary"
         >
           Your session expired. Sign in again to continue.
         </div>
@@ -161,7 +165,7 @@
 
       <div class="mb-6">
         <p class="label">Secure access</p>
-        <h2 class="mt-2 text-2xl font-semibold text-ink">
+        <h2 class="mt-2 text-2xl font-semibold text-body">
           {forgotMode ? 'Reset password' : 'Sign in'}
         </h2>
         <p class="mt-2 text-sm text-muted">
@@ -176,11 +180,11 @@
           <label class="block">
             <span class="label">Email</span>
             <span
-              class="mt-2 flex items-center gap-2 rounded-md border border-line bg-field px-3"
+              class="mt-2 flex items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary"
             >
               <Mail size={16} class="text-muted" />
               <input
-                class="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                class="h-11 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
                 type="email"
                 bind:value={resetEmail}
               />
@@ -203,11 +207,11 @@
           <label class="block">
             <span class="label">Email</span>
             <span
-              class="mt-2 flex items-center gap-2 rounded-md border border-line bg-field px-3"
+              class="mt-2 flex items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary"
             >
               <Mail size={16} class="text-muted" />
               <input
-                class="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                class="h-11 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
                 type="email"
                 autocomplete="email"
                 bind:value={email}
@@ -217,17 +221,17 @@
           <label class="block">
             <span class="label">Password</span>
             <span
-              class="mt-2 flex items-center gap-2 rounded-md border border-line bg-field px-3"
+              class="mt-2 flex items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary"
             >
               <LockKeyhole size={16} class="text-muted" />
               <input
-                class="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none"
+                class="h-11 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
                 type={showPassword ? 'text' : 'password'}
                 autocomplete="current-password"
                 bind:value={password}
               />
               <button
-                class="text-muted hover:text-ink"
+                class="text-muted transition-colors hover:text-body"
                 type="button"
                 aria-label="Toggle password"
                 on:click={() => (showPassword = !showPassword)}
@@ -242,14 +246,14 @@
           <div class="flex items-center justify-between gap-3 text-sm">
             <label class="inline-flex items-center gap-2 text-muted">
               <input
-                class="h-4 w-4 rounded border-line text-fresh"
+                class="h-4 w-4 rounded border-border accent-primary"
                 type="checkbox"
                 bind:checked={remember}
               />
               Remember me
             </label>
             <button
-              class="font-semibold text-fresh hover:text-fresh/80"
+              class="font-semibold text-primary hover:text-primary-hover"
               type="button"
               on:click={() => (forgotMode = true)}
             >
@@ -271,7 +275,7 @@
 
           {#if $auth.error}
             <p
-              class="rounded-md border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral"
+              class="rounded-md border border-down/30 bg-down/10 px-3 py-2 text-sm text-down"
             >
               {$auth.error}
             </p>

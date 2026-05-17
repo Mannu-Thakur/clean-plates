@@ -10,20 +10,23 @@
 ## CRITICAL PRE-WORK: Understand What Exists
 
 ### ✅ Files that are CORRECT — do NOT touch
-| File | Status |
-|------|--------|
-| `src/lib/api/client.ts` | Full fetch wrapper, JWT attach, auto-refresh |
-| `src/lib/api/ws.ts` | ReconnectingSocket with exponential backoff |
-| `src/lib/stores/auth.ts` | initAuth, login, logout |
-| `src/lib/stores/toast.ts` | notify() — but missing `warning` type |
-| `src/lib/utils/format.ts` | grams, number, pct, dateTime, statusTone, etc. |
-| `src/lib/utils/forms.ts` | Keep as-is |
-| `src/lib/components/layout/navigation.ts` | All 12 nav items with RBAC |
-| `src/routes/+page.ts` | Redirect to /dashboard |
-| `src/routes/+layout.ts` | Static adapter prerender=false |
+
+| File                                      | Status                                         |
+| ----------------------------------------- | ---------------------------------------------- |
+| `src/lib/api/client.ts`                   | Full fetch wrapper, JWT attach, auto-refresh   |
+| `src/lib/api/ws.ts`                       | ReconnectingSocket with exponential backoff    |
+| `src/lib/stores/auth.ts`                  | initAuth, login, logout                        |
+| `src/lib/stores/toast.ts`                 | notify() — but missing `warning` type          |
+| `src/lib/utils/format.ts`                 | grams, number, pct, dateTime, statusTone, etc. |
+| `src/lib/utils/forms.ts`                  | Keep as-is                                     |
+| `src/lib/components/layout/navigation.ts` | All 12 nav items with RBAC                     |
+| `src/routes/+page.ts`                     | Redirect to /dashboard                         |
+| `src/routes/+layout.ts`                   | Static adapter prerender=false                 |
 
 ### ❌ Files that are BROKEN (wrong tokens — light theme colors)
+
 Every component uses old light-theme tokens:
+
 - `bg-fresh` / `text-fresh` → should be `bg-primary` / `text-primary`
 - `bg-coral` → `bg-down`; `text-coral` → `text-down`
 - `bg-amber` → warning uses `text-primary`
@@ -37,45 +40,46 @@ Every component uses old light-theme tokens:
 - `bg-ink/30` → `bg-canvas/80` (modal overlay)
 
 ### ❌ Missing Files (must CREATE)
-| File | Phase |
-|------|-------|
-| `src/lib/utils/constants.ts` | P1 |
-| `src/lib/utils/chartDefaults.ts` | P1 |
-| `src/lib/components/ui/DataTable.svelte` | P1 |
-| `src/lib/components/ui/FilterBar.svelte` | P1 |
-| `src/lib/components/ui/Pagination.svelte` | P1 |
-| `src/lib/components/ui/ConfirmDialog.svelte` | P1 |
-| `src/lib/components/ui/Tabs.svelte` | P1 |
-| `src/lib/components/ui/Toggle.svelte` | P1 |
-| `src/lib/components/ui/FormField.svelte` | P1 |
-| `src/lib/components/ui/SearchInput.svelte` | P1 |
-| `src/lib/components/ui/DateRangePicker.svelte` | P1 |
-| `src/lib/components/ui/SelectField.svelte` | P1 |
-| `src/lib/components/ui/FileUpload.svelte` | P1 |
-| `src/lib/components/ui/SkeletonRow.svelte` | P1 |
-| `src/lib/components/layout/PageHeader.svelte` | P1 |
-| `src/routes/dashboard/reports/+page.svelte` | P5 |
+
+| File                                           | Phase |
+| ---------------------------------------------- | ----- |
+| `src/lib/utils/constants.ts`                   | P1    |
+| `src/lib/utils/chartDefaults.ts`               | P1    |
+| `src/lib/components/ui/DataTable.svelte`       | P1    |
+| `src/lib/components/ui/FilterBar.svelte`       | P1    |
+| `src/lib/components/ui/Pagination.svelte`      | P1    |
+| `src/lib/components/ui/ConfirmDialog.svelte`   | P1    |
+| `src/lib/components/ui/Tabs.svelte`            | P1    |
+| `src/lib/components/ui/Toggle.svelte`          | P1    |
+| `src/lib/components/ui/FormField.svelte`       | P1    |
+| `src/lib/components/ui/SearchInput.svelte`     | P1    |
+| `src/lib/components/ui/DateRangePicker.svelte` | P1    |
+| `src/lib/components/ui/SelectField.svelte`     | P1    |
+| `src/lib/components/ui/FileUpload.svelte`      | P1    |
+| `src/lib/components/ui/SkeletonRow.svelte`     | P1    |
+| `src/lib/components/layout/PageHeader.svelte`  | P1    |
+| `src/routes/dashboard/reports/+page.svelte`    | P5    |
 
 ---
 
 ## Design Token Reference
 
-| Tailwind Class | Hex | Usage |
-|----------------|-----|-------|
-| `bg-canvas` | `#0b0e11` | Page background — flat, NO gradient |
-| `bg-card` | `#1e2329` | Cards, panels, modals, aside nav |
-| `bg-elevated` | `#2b3139` | Table headers, dropdowns, dividers |
-| `bg-primary` | `#fcd535` | All CTAs, active nav, brand |
-| `bg-primary-hover` | `#f0b90b` | Button hover |
-| `bg-primary-disabled` | `#3a3a1f` | Disabled CTA |
-| `text-ink` | `#181a20` | Text ON yellow (button labels) |
-| `text-body` | `#eaecef` | Primary text on dark |
-| `text-muted` | `#707a8a` | Labels, secondary text |
-| `text-muted-strong` | `#929aa5` | Strong muted |
-| `border-border` | `#2b3139` | All borders |
-| `text-up` | `#0ecb81` | Success, online, positive |
-| `text-down` | `#f6465d` | Error, offline, negative |
-| `text-info` | `#3b82f6` | Info badges |
+| Tailwind Class        | Hex       | Usage                               |
+| --------------------- | --------- | ----------------------------------- |
+| `bg-canvas`           | `#0b0e11` | Page background — flat, NO gradient |
+| `bg-card`             | `#1e2329` | Cards, panels, modals, aside nav    |
+| `bg-elevated`         | `#2b3139` | Table headers, dropdowns, dividers  |
+| `bg-primary`          | `#fcd535` | All CTAs, active nav, brand         |
+| `bg-primary-hover`    | `#f0b90b` | Button hover                        |
+| `bg-primary-disabled` | `#3a3a1f` | Disabled CTA                        |
+| `text-ink`            | `#181a20` | Text ON yellow (button labels)      |
+| `text-body`           | `#eaecef` | Primary text on dark                |
+| `text-muted`          | `#707a8a` | Labels, secondary text              |
+| `text-muted-strong`   | `#929aa5` | Strong muted                        |
+| `border-border`       | `#2b3139` | All borders                         |
+| `text-up`             | `#0ecb81` | Success, online, positive           |
+| `text-down`           | `#f6465d` | Error, offline, negative            |
+| `text-info`           | `#3b82f6` | Info badges                         |
 
 **RULES:** NO `box-shadow` on cards/panels. NO gradient anywhere. Focus rings only.
 
@@ -83,14 +87,14 @@ Every component uses old light-theme tokens:
 
 ## Phase Map
 
-| Phase | Scope | Key Deliverables |
-|-------|-------|-----------------|
+| Phase  | Scope                             | Key Deliverables                                   |
+| ------ | --------------------------------- | -------------------------------------------------- |
 | **P1** | Foundation + Design System + Auth | Token migration, all shared components, login page |
-| **P2** | Dashboard + Live Monitoring | KPI cards, charts, WebSocket feed |
-| **P3** | Analytics + Students | Full analytics, student list+profile |
-| **P4** | Warnings + Rule Engine | Warning management, rule builder |
-| **P5** | Notifications + Reports + Devices | Inbox, report generator, device health |
-| **P6** | Config + Settings + Audit | Institution config, user management, audit log |
+| **P2** | Dashboard + Live Monitoring       | KPI cards, charts, WebSocket feed                  |
+| **P3** | Analytics + Students              | Full analytics, student list+profile               |
+| **P4** | Warnings + Rule Engine            | Warning management, rule builder                   |
+| **P5** | Notifications + Reports + Devices | Inbox, report generator, device health             |
+| **P6** | Config + Settings + Audit         | Institution config, user management, audit log     |
 
 ---
 
@@ -101,7 +105,9 @@ Every component uses old light-theme tokens:
 **Gate before P2:** `npm run check` passes; browser shows #0b0e11 canvas
 
 ### Step 1.1 — Fix `tailwind.config.ts`
+
 Replace ALL old tokens with Binance system:
+
 ```typescript
 colors: {
   canvas: '#0b0e11',
@@ -132,6 +138,7 @@ boxShadow: {
 ```
 
 ### Step 1.2 — Fix `src/app.css`
+
 - Remove `color-scheme: light` → add `color-scheme: dark`
 - Remove gradient body background → flat `background: #0b0e11`
 - Replace `.surface` → `.card` (no shadow)
@@ -141,30 +148,35 @@ boxShadow: {
 - Add all component utilities: `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger`, `.btn-sm`, `.card`, `.card-elevated`, `.input-field`, `.textarea-field`, `.select-field`, `.badge-up`, `.badge-down`, `.badge-muted`, `.badge-primary`, `.badge-info`, `.nav-item`, `.nav-item-active`, `.skeleton`, status dots
 
 ### Step 1.3 — Fix `src/app.html`
+
 Add `<meta name="color-scheme" content="dark">` and `<meta name="theme-color" content="#0b0e11">`
 
 ### Step 1.4 — Fix `src/routes/+layout.svelte`
+
 Add `onMount(() => applyDarkChartDefaults())` import
 
 ### Step 1.5 — Migrate Existing Components
-| Component | Key Changes |
-|-----------|-------------|
-| `Button.svelte` | Use `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger` + `.btn-sm` |
-| `Card.svelte` | `surface` → `.card` (no shadow) |
-| `StatCard.svelte` | `bg-fresh/10 text-fresh` → `bg-up/10 text-up`; `bg-amber` → `bg-primary/10 text-primary`; `bg-coral` → `bg-down/10 text-down`; `text-ink` → `text-body`; `surface` → `card` |
-| `StatusBadge.svelte` | Same token replacement; use `.badge-up`, `.badge-down` etc. |
-| `Modal.svelte` | `bg-white` → `bg-card`; `shadow-soft` → remove; `border-line` → `border-border`; `bg-ink/35` → `bg-canvas/80` |
-| `EmptyState.svelte` | `border-dashed border-line` → `border-dashed border-border`; `bg-slate-50` → remove; `text-ink` → `text-body` |
-| `ToastHost.svelte` | `surface` → `card`; `border-fresh/30` → `border-up/30`; `border-coral/30` → `border-down/30`; `text-ink` → `text-body` |
-| `ChartCard.svelte` | Replace old palette with `['#fcd535','#0ecb81','#3b82f6','#f6465d','#707a8a','#929aa5']`; `grid.color: '#2b3139'`; ticks color `#707a8a` |
-| `Gauge.svelte` | Use dark colors for SVG paths |
-| `DashboardShell.svelte` | All token replacements; nav item active → `bg-primary text-ink`; border-line→border-border; bg-white→bg-card; aside width 76px/260px |
+
+| Component               | Key Changes                                                                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button.svelte`         | Use `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger` + `.btn-sm`                                                                                               |
+| `Card.svelte`           | `surface` → `.card` (no shadow)                                                                                                                                             |
+| `StatCard.svelte`       | `bg-fresh/10 text-fresh` → `bg-up/10 text-up`; `bg-amber` → `bg-primary/10 text-primary`; `bg-coral` → `bg-down/10 text-down`; `text-ink` → `text-body`; `surface` → `card` |
+| `StatusBadge.svelte`    | Same token replacement; use `.badge-up`, `.badge-down` etc.                                                                                                                 |
+| `Modal.svelte`          | `bg-white` → `bg-card`; `shadow-soft` → remove; `border-line` → `border-border`; `bg-ink/35` → `bg-canvas/80`                                                               |
+| `EmptyState.svelte`     | `border-dashed border-line` → `border-dashed border-border`; `bg-slate-50` → remove; `text-ink` → `text-body`                                                               |
+| `ToastHost.svelte`      | `surface` → `card`; `border-fresh/30` → `border-up/30`; `border-coral/30` → `border-down/30`; `text-ink` → `text-body`                                                      |
+| `ChartCard.svelte`      | Replace old palette with `['#fcd535','#0ecb81','#3b82f6','#f6465d','#707a8a','#929aa5']`; `grid.color: '#2b3139'`; ticks color `#707a8a`                                    |
+| `Gauge.svelte`          | Use dark colors for SVG paths                                                                                                                                               |
+| `DashboardShell.svelte` | All token replacements; nav item active → `bg-primary text-ink`; border-line→border-border; bg-white→bg-card; aside width 76px/260px                                        |
 
 ### Step 1.6 — Create New Utils
+
 - `src/lib/utils/constants.ts` — ROLES, MEAL_TYPES, WARNING_LEVELS, STUDENT_STATUSES, PENALTY_TYPES
 - `src/lib/utils/chartDefaults.ts` — applyDarkChartDefaults(), CHART_COLORS
 
 ### Step 1.7 — Create New UI Components
+
 All use Binance tokens. No shadows on surfaces.
 
 **`DataTable.svelte`** — Generic paginated table  
@@ -221,14 +233,17 @@ Props: `label`, `title`, `description?`
 Slot: `actions` (right side)
 
 ### Step 1.8 — Redesign Login Page
+
 Dark two-column layout: left brand panel + right form  
 API: `POST /api/v1/auth/login` → `AuthStore.login(email, password, rememberMe)`  
 On success: redirect to `/dashboard` (admin) or `/dashboard/monitoring` (staff_operator)
 
 ### Step 1.9 — Fix `src/lib/stores/toast.ts`
+
 Add `'warning'` type to Toast union
 
 ### P1 Verification Gate
+
 - [ ] `npm run check` — zero TypeScript errors
 - [ ] `npm run dev` — no console errors
 - [ ] Browser: `#0b0e11` canvas — NO light bg, NO gradient
@@ -243,35 +258,43 @@ Add `'warning'` type to Toast union
 **Depends on:** P1 complete and verified
 
 ### Pages
+
 1. **Overview Dashboard** (`/dashboard`) — already scaffolded, needs token migration
 2. **Live Monitoring** (`/dashboard/monitoring`) — already scaffolded, needs token migration
 
 ### Step 2.1 — Overview Dashboard Token Migration
-File: `src/routes/dashboard/+page.svelte`  
+
+File: `src/routes/dashboard/+page.svelte`
+
 - `class="field"` select → `class="select-field"`
 - `h2 ... text-ink` → `text-body`
 - skeleton `animate-pulse bg-slate-100` → `skeleton`
 - All component props (already uses correct API calls)
 
 ### Step 2.2 — Dashboard Layout
+
 - Use `PageHeader` with `label="Global overview"`, `title="Institution-wide waste operations"`
 - Period selector in `actions` slot
 
 ### Step 2.3 — Live Monitoring Token Migration
+
 File: `src/routes/dashboard/monitoring/+page.svelte`  
 API endpoints:
+
 - `GET /api/v1/monitoring/current-session`
 - `GET /api/v1/monitoring/recent-entries`
 - `GET /api/v1/monitoring/device-statuses`
 - `WS /ws/monitoring` (no `/api/v1` prefix)
 
 Features:
+
 - Live waste feed (scrolling list of recent entries)
 - Session metrics: today's waste, active devices, alert count
 - Device status grid with online/offline indicators
 - WS status badge, pause/resume button
 
 ### P2 Verification Gate
+
 - [ ] Dashboard loads KPI cards with real data
 - [ ] Charts render with dark theme colors
 - [ ] Monitoring page connects to WS
@@ -285,15 +308,18 @@ Features:
 **Depends on:** P2 complete
 
 ### Pages
+
 3. **Analytics** (`/dashboard/analytics`) — already scaffolded
 4. **Students List** (`/dashboard/students`) — already scaffolded
 5. **Student Profile** (`/dashboard/students/[id]`) — needs creation
 
 ### Step 3.1 — Analytics Page Migration
+
 File: `src/routes/dashboard/analytics/+page.svelte`  
 Token migration + feature completion
 
 **Tabs:**
+
 - Tab 1: Trends (line chart — daily/weekly/monthly)
 - Tab 2: Heatmap (7×24 grid from `GET /api/v1/analytics/trends?type=daily_pattern`)
 - Tab 3: Top Contributors (bar chart from `GET /api/v1/analytics/top-waste-contributors`)
@@ -304,24 +330,30 @@ Token migration + feature completion
 **Branch comparison:** NOT available in backend — remove or show "coming soon"
 
 ### Step 3.2 — Students List Page Migration
+
 File: `src/routes/dashboard/students/+page.svelte`  
 Token migration + correct FilterBar
 
 **Correct filters:** `status`, `branch`, `hostel`, `year` (NO `search` or `warning_status` as server params — search is client-side only)
 
 **Bulk actions:**
+
 - Bulk warn → `POST /api/v1/students/bulk/warn` (NOT `/{id}/bulk-warn`)
 
 **Quick warn modal:**
+
 - `POST /api/v1/students/{id}/warnings` (NOT `/students/{id}/warn`)
 
 **Student import:**
+
 - `POST /api/v1/students/import-mapping` (CSV upload)
 
 ### Step 3.3 — Student Profile Page
+
 File: `src/routes/dashboard/students/[id]/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/students/{id}`
 - `GET /api/v1/students/{id}/stats`
 - `GET /api/v1/students/{id}/timeline`
@@ -332,6 +364,7 @@ API calls:
 Features: profile header, sustainability score gauge, waste history chart, warning timeline, food breakdown doughnut
 
 ### P3 Verification Gate
+
 - [ ] Analytics tabs all load real data
 - [ ] Heatmap renders from daily_pattern API
 - [ ] Students list filters work with correct params
@@ -345,13 +378,16 @@ Features: profile header, sustainability score gauge, waste history chart, warni
 **Depends on:** P3 complete
 
 ### Pages
+
 6. **Warnings & Penalties** (`/dashboard/warnings`) — already scaffolded
 7. **Rule Engine** (`/dashboard/rules`) — already scaffolded
 
 ### Step 4.1 — Warnings Page Migration
+
 File: `src/routes/dashboard/warnings/+page.svelte`
 
 **CRITICAL API corrections:**
+
 - No `GET /api/v1/warnings/{id}` — detail modal uses row data (prop)
 - Create manual warning → `POST /api/v1/students/{student_id}/warnings` (NOT `/warnings`)
 - Create direct penalty → `POST /api/v1/students/{student_id}/penalties` (NOT `/warnings/penalties`)
@@ -362,9 +398,11 @@ File: `src/routes/dashboard/warnings/+page.svelte`
 **Tabs:** Active Warnings | Resolved | Penalties | Escalations
 
 ### Step 4.2 — Rule Engine Page Migration
+
 File: `src/routes/dashboard/rules/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/rules` (list)
 - `POST /api/v1/rules` (create)
 - `PATCH /api/v1/rules/{id}`
@@ -380,6 +418,7 @@ API calls:
 Features: Rule list with toggle, rule builder modal (conditions + actions), test panel, simulation panel, execution history tab
 
 ### P4 Verification Gate
+
 - [ ] Warnings list shows with correct status badges
 - [ ] Create warning modal submits to `/students/{id}/warnings`
 - [ ] Resolve/escalate actions work
@@ -394,14 +433,17 @@ Features: Rule list with toggle, rule builder modal (conditions + actions), test
 **Depends on:** P4 complete
 
 ### Pages
+
 8. **Notifications** (`/dashboard/notifications`) — already scaffolded
 9. **Reports** (`/dashboard/reports`) — DOES NOT EXIST, must create
 10. **Devices** (`/dashboard/devices`) — already scaffolded
 
 ### Step 5.1 — Notifications Page Migration
+
 File: `src/routes/dashboard/notifications/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/notifications` (paginated, filters: type, channel, status, is_read)
 - `PATCH /api/v1/notifications/{id}` (mark read)
 - `POST /api/v1/notifications/mark-all-read`
@@ -411,9 +453,11 @@ API calls:
 Features: notification inbox list, unread badge count, mark-all-read button, preferences panel (toggle channels per type)
 
 ### Step 5.2 — Reports Page (CREATE)
+
 File: `src/routes/dashboard/reports/+page.svelte` (MISSING — must create)
 
 API calls:
+
 - `GET /api/v1/reports` (list past reports)
 - `POST /api/v1/reports/generate` (queue new report)
 - `GET /api/v1/reports/{id}` (status polling)
@@ -421,15 +465,18 @@ API calls:
 - `GET /api/v1/reports/schedules`
 
 Features:
+
 - Report history table with status (pending/completed/failed)
 - Generate Report modal: type selector (overview/students/warnings/devices), format (pdf/xlsx/csv), date range
 - Download button for completed reports
 - Schedule list (recurring reports)
 
 ### Step 5.3 — Devices Page Migration
+
 File: `src/routes/dashboard/devices/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/devices` (paginated)
 - `GET /api/v1/devices/{id}`
 - `GET /api/v1/devices/{id}/health`
@@ -437,11 +484,13 @@ API calls:
 - `PATCH /api/v1/devices/{id}`
 
 Features:
+
 - Device grid/list with online/offline status
 - Device detail modal: health metrics (CPU%, RAM%, temp), last heartbeat, firmware
 - Device history timeline
 
 ### P5 Verification Gate
+
 - [ ] Notifications inbox loads and mark-read works
 - [ ] Reports page exists and report generation queues
 - [ ] Download triggers file save
@@ -455,14 +504,17 @@ Features:
 **Depends on:** P5 complete
 
 ### Pages
+
 11. **Configuration** (`/dashboard/config`) — already scaffolded
 12. **Settings** (`/dashboard/settings`) — already scaffolded
 13. **Audit Log** (`/dashboard/audit`) — already scaffolded
 
 ### Step 6.1 — Configuration Page Migration
+
 File: `src/routes/dashboard/config/+page.svelte`
 
 API calls (all fetched in `Promise.all()`):
+
 - `GET /api/v1/config/institution`
 - `GET /api/v1/config/thresholds`
 - `GET /api/v1/config/meals`
@@ -473,9 +525,11 @@ API calls (all fetched in `Promise.all()`):
 **Tabs:** Institution | Thresholds | Meal Schedule | Branches
 
 ### Step 6.2 — Settings Page Migration
+
 File: `src/routes/dashboard/settings/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/settings/users` / `POST` / `PATCH /settings/users/{id}` / `POST /settings/users/{id}/deactivate` (NOT delete)
 - `GET /api/v1/settings/security` / `PUT`
 - `GET /api/v1/settings/backups` / `POST /settings/backups/trigger` / `POST /settings/backups/restore` (file upload, field: `backup_file`)
@@ -490,9 +544,11 @@ Store actions: `fetchUsers()`, `createUser()`, `updateUser()`, `deactivateUser()
 **Tabs:** Users | Security | Backups | Maintenance | Appearance
 
 ### Step 6.3 — Audit Log Page Migration
+
 File: `src/routes/dashboard/audit/+page.svelte`
 
 API calls:
+
 - `GET /api/v1/audit` (paginated, filters: action, resource_type, date_from, date_to, user_id)
 - `GET /api/v1/audit/{id}` (detail)
 - `GET /api/v1/audit/stats`
@@ -500,6 +556,7 @@ API calls:
 Features: audit table with timestamp, actor, action, resource; detail drawer showing full payload; stats cards (top actions, top actors)
 
 ### P6 Verification Gate
+
 - [ ] Config tabs save and reset correctly
 - [ ] Config reset uses `POST /config/reset/{section}` (correct order)
 - [ ] User deactivate (not delete) works
@@ -522,25 +579,25 @@ Features: audit table with timestamp, actor, action, resource; detail drawer sho
 
 ## Token Quick-Reference Migration Map
 
-| Old (wrong) | New (correct) |
-|-------------|---------------|
-| `bg-fresh` | `bg-primary` |
-| `text-fresh` | `text-primary` |
-| `bg-coral` | `bg-down` |
-| `text-coral` | `text-down` |
-| `bg-amber` | `bg-primary/10` (warn context) |
-| `text-amber` | `text-primary` (warn context) |
-| `bg-white` | `bg-card` |
-| `bg-panel` | `bg-card` |
-| `border-line` | `border-border` |
-| `bg-field` | `bg-elevated` |
-| `bg-slate-100`, `bg-slate-50` | `bg-elevated` |
-| `text-ink` (body text on dark) | `text-body` |
-| `text-ink` (text ON yellow) | `text-ink` (keep!) |
-| `.surface` | `.card` |
-| `shadow-soft` | _(remove)_ |
-| `bg-ink/30` (overlay) | `bg-canvas/80` |
-| `ring-fresh` | `ring-primary` |
-| `border-t-fresh` (spinner) | `border-t-primary` |
-| `bg-fresh text-white` (nav active) | `bg-primary text-ink` |
+| Old (wrong)                               | New (correct)                       |
+| ----------------------------------------- | ----------------------------------- |
+| `bg-fresh`                                | `bg-primary`                        |
+| `text-fresh`                              | `text-primary`                      |
+| `bg-coral`                                | `bg-down`                           |
+| `text-coral`                              | `text-down`                         |
+| `bg-amber`                                | `bg-primary/10` (warn context)      |
+| `text-amber`                              | `text-primary` (warn context)       |
+| `bg-white`                                | `bg-card`                           |
+| `bg-panel`                                | `bg-card`                           |
+| `border-line`                             | `border-border`                     |
+| `bg-field`                                | `bg-elevated`                       |
+| `bg-slate-100`, `bg-slate-50`             | `bg-elevated`                       |
+| `text-ink` (body text on dark)            | `text-body`                         |
+| `text-ink` (text ON yellow)               | `text-ink` (keep!)                  |
+| `.surface`                                | `.card`                             |
+| `shadow-soft`                             | _(remove)_                          |
+| `bg-ink/30` (overlay)                     | `bg-canvas/80`                      |
+| `ring-fresh`                              | `ring-primary`                      |
+| `border-t-fresh` (spinner)                | `border-t-primary`                  |
+| `bg-fresh text-white` (nav active)        | `bg-primary text-ink`               |
 | `hover:bg-slate-100 hover:text-ink` (nav) | `hover:bg-elevated hover:text-body` |

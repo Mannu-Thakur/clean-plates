@@ -191,7 +191,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Notification center</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Inbox, broadcasts, and scheduled messages
     </h2>
   </div>
@@ -237,7 +237,7 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <label
       ><span class="label">Type</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.type}
         id="select-notif-type"
         ><option value="">All</option><option>warning</option><option
@@ -248,7 +248,7 @@
     >
     <label
       ><span class="label">Channel</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.channel}
         id="select-notif-channel"
         ><option value="">All</option><option>email</option><option
@@ -265,7 +265,7 @@
 <div class="mt-5 flex flex-wrap gap-2">
   {#each ['inbox', 'sent', 'scheduled', 'broadcast'] as tab}
     <button
-      class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+      class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
       on:click={() => {
         activeTab = tab as typeof activeTab;
         loadNotifications();
@@ -276,12 +276,12 @@
 
 <Card class="mt-5" title="Notification list">
   {#if error}<div
-      class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral"
+      class="rounded-md border border-down/30 bg-down/10 p-3 text-down"
     >
       {error}
     </div>
   {:else if loading}<div
-      class="h-96 animate-pulse rounded-lg bg-slate-100"
+      class="h-96 animate-pulse rounded-lg bg-elevated"
     ></div>
   {:else if notifications.items.length === 0}<EmptyState
       title="No notifications"
@@ -290,11 +290,11 @@
     <div class="space-y-3">
       {#each notifications.items as item}
         <div
-          class={`rounded-lg border p-4 ${item.is_read ? 'border-line bg-white' : 'border-fresh/30 bg-fresh/5'}`}
+          class={`rounded-lg border p-4 ${item.is_read ? 'border-border bg-card' : 'border-primary/30 bg-primary/5'}`}
         >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <button class="min-w-0 text-left" on:click={() => openDetail(item)}>
-              <p class="truncate font-semibold text-ink">{item.subject}</p>
+              <p class="truncate font-semibold text-body">{item.subject}</p>
               <p class="mt-1 text-sm text-muted">
                 {titleCase(item.type)} · {titleCase(item.channel)} · {dateTime(
                   item.created_at
@@ -342,14 +342,14 @@
   >
     <label
       ><span class="label">Subject</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.subject}
         required
       /></label
     >
     <label
       ><span class="label">Template</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={form.template_id}
         on:change={useTemplate}
         ><option value="">None</option>{#each templates as template}<option
@@ -359,7 +359,7 @@
     >
     <label
       ><span class="label">Type</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={form.type}
         ><option>custom</option><option>warning</option><option>penalty</option
         ><option>alert</option><option>system</option></select
@@ -367,7 +367,7 @@
     >
     <label
       ><span class="label">Channel</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={form.channel}
         ><option>dashboard</option><option>email</option><option>both</option
         ></select
@@ -375,7 +375,7 @@
     >
     <label
       ><span class="label">Recipients</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={form.recipient_type}
         ><option>all</option><option>individual</option><option>branch</option
         ><option>hostel</option><option>year</option></select
@@ -383,21 +383,21 @@
     >
     <label
       ><span class="label">Recipient IDs</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.recipient_ids}
         placeholder="Comma-separated IDs"
       /></label
     >
     <label
       ><span class="label">Schedule at</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="datetime-local"
         bind:value={form.scheduled_at}
       /></label
     >
     <label class="lg:col-span-2"
       ><span class="label">Body</span><textarea
-        class="field mt-2 min-h-36 w-full py-3"
+        class="textarea-field mt-2 min-h-36 w-full py-3"
         bind:value={form.body}
         required
       ></textarea></label
@@ -431,28 +431,30 @@
     <div class="grid gap-5 lg:grid-cols-[1fr_0.9fr]">
       <div>
         <p class="label">Message</p>
-        <div class="mt-2 rounded-lg border border-line bg-slate-50 p-4 text-sm">
+        <div
+          class="mt-2 rounded-lg border border-border bg-elevated p-4 text-sm"
+        >
           {selected.body ?? 'No body loaded.'}
         </div>
       </div>
       <div class="space-y-3">
         <div class="grid grid-cols-3 gap-2 text-center text-sm">
-          <div class="rounded-lg bg-slate-50 p-3">
+          <div class="rounded-lg bg-elevated p-3">
             <p class="font-semibold">{number(delivery?.delivered)}</p>
             <p class="text-xs text-muted">Delivered</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-3">
+          <div class="rounded-lg bg-elevated p-3">
             <p class="font-semibold">{number(delivery?.failed)}</p>
             <p class="text-xs text-muted">Failed</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-3">
+          <div class="rounded-lg bg-elevated p-3">
             <p class="font-semibold">{number(delivery?.pending)}</p>
             <p class="text-xs text-muted">Pending</p>
           </div>
         </div>
-        <div class="max-h-72 overflow-auto rounded-lg border border-line">
+        <div class="max-h-72 overflow-auto rounded-lg border border-border">
           {#each delivery?.deliveries ?? [] as item}
-            <div class="border-b border-line p-3 text-sm">
+            <div class="border-b border-border p-3 text-sm">
               <div class="flex justify-between gap-3">
                 <span>{item.recipient_email ?? item.recipient_id}</span
                 ><StatusBadge value={String(item.status)} compact />

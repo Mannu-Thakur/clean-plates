@@ -197,14 +197,14 @@
     >
     <div class="min-w-0">
       <p class="label">Student intelligence</p>
-      <h2 class="mt-1 truncate text-2xl font-semibold text-ink">
+      <h2 class="mt-1 truncate text-2xl font-semibold text-body">
         {profile?.mapping?.name ?? profile?.device_id ?? 'Student profile'}
       </h2>
     </div>
   </div>
   <div class="flex flex-wrap gap-2">
     <select
-      class="field"
+      class="select-field"
       bind:value={period}
       on:change={loadProfile}
       id="select-student-period"
@@ -239,13 +239,13 @@
     ><Button on:click={loadProfile}>Retry</Button></Card
   >
 {:else if loading && !profile}
-  <div class="surface h-96 animate-pulse bg-slate-100"></div>
+  <div class="card h-96 animate-pulse bg-elevated"></div>
 {:else if profile}
   <Card>
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div class="flex min-w-0 items-center gap-4">
         <div
-          class="grid h-16 w-16 place-items-center rounded-lg bg-fresh text-xl font-semibold text-white"
+          class="grid h-16 w-16 place-items-center rounded-lg bg-primary text-xl font-semibold text-white"
         >
           {(profile.mapping?.name ?? profile.device_id)
             .slice(0, 2)
@@ -305,7 +305,7 @@
   <div class="mt-5 flex flex-wrap gap-2">
     {#each tabs as tab}
       <button
-        class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-fresh text-white' : 'bg-white text-muted hover:text-ink'}`}
+        class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-primary text-ink' : 'bg-card text-muted hover:text-body'}`}
         on:click={() => (activeTab = tab)}
         id={`tab-${tab}`}>{titleCase(tab)}</button
       >
@@ -367,23 +367,21 @@
       {:else}
         <div class="overflow-auto">
           <table>
-            <thead class="table-head"
+            <thead class="bg-elevated"
               ><tr
-                ><th class="table-cell">Time</th><th class="table-cell">Meal</th
-                ><th class="table-cell">Weight</th><th class="table-cell"
-                  >Food</th
-                ><th class="table-cell">Severity</th></tr
+                ><th class="th">Time</th><th class="th">Meal</th><th class="th"
+                  >Weight</th
+                ><th class="th">Food</th><th class="th">Severity</th></tr
               ></thead
             >
             <tbody>
               {#each history.items as entry}
                 <tr
-                  ><td class="table-cell">{dateTime(entry.timestamp)}</td><td
-                    class="table-cell">{titleCase(entry.meal_type)}</td
-                  ><td class="table-cell">{grams(entry.weight_grams)}</td><td
-                    class="table-cell"
+                  ><td class="td">{dateTime(entry.timestamp)}</td><td class="td"
+                    >{titleCase(entry.meal_type)}</td
+                  ><td class="td">{grams(entry.weight_grams)}</td><td class="td"
                     >{entry.food_items?.map((item) => item.name).join(', ')}</td
-                  ><td class="table-cell"
+                  ><td class="td"
                     ><StatusBadge value={entry.severity} compact /></td
                   ></tr
                 >
@@ -419,7 +417,7 @@
         {#if warningLog.warnings.length === 0}<EmptyState />{:else}
           <div class="space-y-3">
             {#each warningLog.warnings as warning}<div
-                class="rounded-lg border border-line p-3"
+                class="rounded-lg border border-border p-3"
               >
                 <div class="flex justify-between gap-3">
                   <p class="font-semibold">{warning.reason}</p>
@@ -438,7 +436,7 @@
         {#if warningLog.penalties.length === 0}<EmptyState />{:else}
           <div class="space-y-3">
             {#each warningLog.penalties as penalty}<div
-                class="rounded-lg border border-line p-3"
+                class="rounded-lg border border-border p-3"
               >
                 <div class="flex justify-between gap-3">
                   <p class="font-semibold">{penalty.reason}</p>
@@ -465,7 +463,7 @@
   <form class="space-y-3" on:submit|preventDefault={issueWarning}>
     <label
       ><span class="label">Level</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={warningForm.level}
         ><option value="level_1">Level 1</option><option value="level_2"
           >Level 2</option
@@ -474,7 +472,7 @@
     >
     <label
       ><span class="label">Reason</span><textarea
-        class="field mt-2 min-h-28 w-full py-3"
+        class="textarea-field mt-2 min-h-28 w-full py-3"
         bind:value={warningForm.reason}
         required
       ></textarea></label
@@ -500,7 +498,7 @@
   <form class="space-y-3" on:submit|preventDefault={issuePenalty}>
     <label
       ><span class="label">Points</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="number"
         min="1"
         max="100"
@@ -509,7 +507,7 @@
     >
     <label
       ><span class="label">Reason</span><textarea
-        class="field mt-2 min-h-28 w-full py-3"
+        class="textarea-field mt-2 min-h-28 w-full py-3"
         bind:value={penaltyForm.reason}
         required
       ></textarea></label
@@ -535,14 +533,14 @@
   <form class="space-y-3" on:submit|preventDefault={sendNotification}>
     <label
       ><span class="label">Subject</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={notificationForm.subject}
         required
       /></label
     >
     <label
       ><span class="label">Channel</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={notificationForm.channel}
         ><option value="dashboard">Dashboard</option><option value="email"
           >Email</option
@@ -551,7 +549,7 @@
     >
     <label
       ><span class="label">Body</span><textarea
-        class="field mt-2 min-h-28 w-full py-3"
+        class="textarea-field mt-2 min-h-28 w-full py-3"
         bind:value={notificationForm.body}
         required
       ></textarea></label

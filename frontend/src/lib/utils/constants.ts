@@ -1,9 +1,9 @@
 export const ROLES = {
-  SUPER_ADMIN:       'super_admin',
+  SUPER_ADMIN: 'super_admin',
   INSTITUTION_ADMIN: 'institution_admin',
-  MESS_ADMIN:        'mess_admin',
-  ANALYTICS_VIEWER:  'analytics_viewer',
-  STAFF_OPERATOR:    'staff_operator',
+  MESS_ADMIN: 'mess_admin',
+  ANALYTICS_VIEWER: 'analytics_viewer',
+  STAFF_OPERATOR: 'staff_operator'
 } as const;
 
 export type Role = (typeof ROLES)[keyof typeof ROLES];
@@ -17,10 +17,21 @@ export type WarningLevel = (typeof WARNING_LEVELS)[number];
 export const STUDENT_STATUSES = ['green', 'yellow', 'orange', 'red'] as const;
 export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 
-export const PENALTY_TYPES = ['points', 'monetary', 'restriction', 'suspension'] as const;
+export const PENALTY_TYPES = [
+  'points',
+  'monetary',
+  'restriction',
+  'suspension'
+] as const;
 export type PenaltyType = (typeof PENALTY_TYPES)[number];
 
-export const REPORT_TYPES = ['overview', 'students', 'warnings', 'devices', 'analytics'] as const;
+export const REPORT_TYPES = [
+  'overview',
+  'students',
+  'warnings',
+  'devices',
+  'analytics'
+] as const;
 export type ReportType = (typeof REPORT_TYPES)[number];
 
 export const REPORT_FORMATS = ['pdf', 'xlsx', 'csv'] as const;
@@ -30,8 +41,8 @@ export const PAGE_SIZES = [25, 50, 100] as const;
 export const DEFAULT_PAGE_SIZE = 25;
 
 export const PERIOD_OPTIONS = [
-  { value: 'today',    label: 'Today' },
-  { value: '7d',       label: 'Last 7 days' },
-  { value: '30d',      label: 'Last 30 days' },
-  { value: 'semester', label: 'This Semester' },
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: 'semester', label: 'This Semester' }
 ] as const;

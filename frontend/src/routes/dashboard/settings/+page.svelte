@@ -218,7 +218,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Settings</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Users, security, backup, and maintenance
     </h2>
   </div>
@@ -262,7 +262,7 @@
   <Card title="Settings">
     <nav class="space-y-1">
       {#each sections as section}<button
-          class={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${activeSection === section ? 'bg-fresh text-white' : 'text-muted hover:bg-slate-100 hover:text-ink'}`}
+          class={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${activeSection === section ? 'bg-primary text-ink' : 'text-muted hover:bg-elevated hover:text-body'}`}
           on:click={() => (activeSection = section)}
           >{titleCase(section)}</button
         >{/each}
@@ -271,7 +271,7 @@
 
   <Card title={titleCase(activeSection)}>
     {#if loading}
-      <div class="h-96 animate-pulse rounded-lg bg-slate-100"></div>
+      <div class="h-96 animate-pulse rounded-lg bg-elevated"></div>
     {:else if activeSection === 'users'}
       <div class="mb-4 flex justify-end">
         <Button on:click={() => (userOpen = true)} id="btn-add-user"
@@ -281,22 +281,18 @@
       {#if users.length === 0}<EmptyState title="No users" />{:else}
         <div class="overflow-auto">
           <table>
-            <thead class="table-head"
+            <thead class="bg-elevated"
               ><tr
-                ><th class="table-cell">Name</th><th class="table-cell"
-                  >Email</th
-                ><th class="table-cell">Role</th><th class="table-cell"
-                  >Last login</th
-                ><th class="table-cell">Actions</th></tr
+                ><th class="th">Name</th><th class="th">Email</th><th class="th"
+                  >Role</th
+                ><th class="th">Last login</th><th class="th">Actions</th></tr
               ></thead
             ><tbody
               >{#each users as user}<tr
-                  ><td class="table-cell">{user.name}</td><td class="table-cell"
+                  ><td class="td">{user.name}</td><td class="td"
                     >{user.email}</td
-                  ><td class="table-cell"
-                    ><StatusBadge value={user.role} compact /></td
-                  ><td class="table-cell">{dateTime(user.last_login)}</td><td
-                    class="table-cell"
+                  ><td class="td"><StatusBadge value={user.role} compact /></td
+                  ><td class="td">{dateTime(user.last_login)}</td><td class="td"
                     ><div class="flex gap-2">
                       <Button
                         size="sm"
@@ -319,7 +315,7 @@
     {:else if activeSection === 'security'}
       <label
         ><span class="label">Security JSON</span><textarea
-          class="field mt-2 min-h-[420px] w-full py-3 font-mono text-xs"
+          class="textarea-field mt-2 min-h-[420px] w-full py-3 font-mono text-xs"
           bind:value={securityJson}
         ></textarea></label
       >
@@ -339,7 +335,7 @@
           >
         </div>
         <input
-          class="field py-2"
+          class="input-field py-2"
           type="file"
           on:change={(event) =>
             (restoreFile = event.currentTarget.files?.[0] ?? null)}
@@ -348,7 +344,7 @@
       {#if backups.length === 0}<EmptyState title="No backups" />{:else}
         <div class="space-y-3">
           {#each backups as backup}<div
-              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-4"
+              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
             >
               <div>
                 <p class="font-semibold">{backup.filename}</p>
@@ -372,25 +368,25 @@
       <div class="grid gap-3 md:grid-cols-2">
         <label
           ><span class="label">Theme</span><select
-            class="field mt-2 w-full"
+            class="select-field mt-2 w-full"
             bind:value={appearance.theme}
             id="btn-toggle-theme"
             ><option>light</option><option>dark</option></select
           ></label
         ><label
           ><span class="label">Primary color</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             type="color"
             bind:value={appearance.primary_color}
           /></label
         ><label
           ><span class="label">Display name</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             bind:value={appearance.institution_display_name}
           /></label
         ><label
           ><span class="label">Logo</span><input
-            class="field mt-2 w-full py-2"
+            class="input-field mt-2 w-full py-2"
             type="file"
             accept="image/*"
             on:change={(event) =>
@@ -399,7 +395,7 @@
         >
       </div>
       {#if appearance.logo_path}<img
-          class="mt-4 h-20 rounded-md border border-line object-contain p-2"
+          class="mt-4 h-20 rounded-md border border-border object-contain p-2"
           src={appearance.logo_path}
           alt="Institution logo"
         />{/if}
@@ -419,7 +415,7 @@
         >
       </div>
       <pre
-        class="mt-5 max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(
+        class="mt-5 max-h-96 overflow-auto rounded-lg bg-canvas p-4 text-xs text-body">{JSON.stringify(
           systemInfo,
           null,
           2
@@ -432,14 +428,14 @@
   <form class="space-y-3" on:submit|preventDefault={createUser}>
     <label
       ><span class="label">Name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={userForm.name}
         required
       /></label
     >
     <label
       ><span class="label">Email</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="email"
         bind:value={userForm.email}
         required
@@ -447,7 +443,7 @@
     >
     <label
       ><span class="label">Role</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={userForm.role}
         ><option>super_admin</option><option>institution_admin</option><option
           >mess_admin</option
@@ -457,7 +453,7 @@
     >
     <label
       ><span class="label">Password</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="password"
         bind:value={userForm.password}
       /></label

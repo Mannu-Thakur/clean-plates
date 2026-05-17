@@ -132,14 +132,14 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Global overview</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Institution-wide waste operations
     </h2>
   </div>
   <div class="flex flex-wrap items-center gap-2">
     <StatusBadge value={wsStatus} />
     <select
-      class="field"
+      class="select-field"
       bind:value={period}
       on:change={loadOverview}
       id="select-overview-period"
@@ -171,7 +171,7 @@
 {:else if loading && !overview}
   <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
     {#each Array(10) as _}
-      <div class="surface h-32 animate-pulse bg-slate-100"></div>
+      <div class="card h-32 animate-pulse bg-elevated"></div>
     {/each}
   </div>
 {:else if overview}

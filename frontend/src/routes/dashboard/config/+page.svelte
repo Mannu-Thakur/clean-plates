@@ -230,7 +230,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Configuration</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Institution, policy, templates, and permissions
     </h2>
   </div>
@@ -257,13 +257,13 @@
     <nav class="space-y-1">
       {#each sections as section}
         <button
-          class={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-semibold ${activeSection === section ? 'bg-fresh text-white' : 'text-muted hover:bg-slate-100 hover:text-ink'}`}
+          class={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm font-semibold ${activeSection === section ? 'bg-primary text-ink' : 'text-muted hover:bg-elevated hover:text-body'}`}
           on:click={() => loadSection(section)}
           id={`nav-config-${section}`}
         >
           {titleCase(section)}
           {#if activeSection === section && hasChanges}<span
-              class="h-2 w-2 rounded-full bg-amber"
+              class="h-2 w-2 rounded-full bg-primary"
             ></span>{/if}
         </button>
       {/each}
@@ -280,12 +280,12 @@
           : 'Edit JSON-backed configuration safely.'}
     >
       {#if error}<div
-          class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral"
+          class="rounded-md border border-down/30 bg-down/10 p-3 text-down"
         >
           {error}
         </div>
       {:else if loading}<div
-          class="h-96 animate-pulse rounded-lg bg-slate-100"
+          class="h-96 animate-pulse rounded-lg bg-elevated"
         ></div>
       {:else if activeSection === 'templates'}
         <div class="mb-4 flex justify-end">
@@ -296,7 +296,7 @@
         {#if templates.length === 0}<EmptyState title="No templates" />{:else}
           <div class="space-y-3">
             {#each templates as template}<div
-                class="rounded-lg border border-line p-4"
+                class="rounded-lg border border-border p-4"
               >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -335,7 +335,7 @@
           <div class="space-y-3">
             <label
               ><span class="label">Role</span><select
-                class="field mt-2 w-full"
+                class="select-field mt-2 w-full"
                 bind:value={selectedRoleId}
                 on:change={selectRole}
                 >{#each roles as role}<option value={role.id}
@@ -344,7 +344,7 @@
               ></label
             ><label
               ><span class="label">Permissions JSON</span><textarea
-                class="field mt-2 min-h-[360px] w-full py-3 font-mono text-xs"
+                class="textarea-field mt-2 min-h-[360px] w-full py-3 font-mono text-xs"
                 bind:value={roleDraft}
               ></textarea></label
             >
@@ -355,7 +355,7 @@
         {/if}
       {:else}
         <textarea
-          class="field min-h-[520px] w-full py-3 font-mono text-xs leading-6"
+          class="textarea-field min-h-[520px] w-full py-3 font-mono text-xs leading-6"
           bind:value={draft}
         ></textarea>
       {/if}
@@ -367,7 +367,7 @@
         />{:else}
         <div class="space-y-2">
           {#each auditEvents as event}<div
-              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line p-3 text-sm"
+              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm"
             >
               <span>{event.summary}</span><span class="text-muted"
                 >{dateTime(String(event.created_at))}</span
@@ -391,35 +391,35 @@
   >
     <label
       ><span class="label">Name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={templateForm.name}
         required
       /></label
     >
     <label
       ><span class="label">Type</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={templateForm.type}
         required
       /></label
     >
     <label class="md:col-span-2"
       ><span class="label">Subject</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={templateForm.subject}
         required
       /></label
     >
     <label class="md:col-span-2"
       ><span class="label">Body HTML</span><textarea
-        class="field mt-2 min-h-56 w-full py-3"
+        class="textarea-field mt-2 min-h-56 w-full py-3"
         bind:value={templateForm.body_html}
         required
       ></textarea></label
     >
     <label class="md:col-span-2"
       ><span class="label">Variables</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={templateForm.variables}
         placeholder="student_name, warning_level"
       /></label
@@ -442,7 +442,7 @@
 >
   <iframe
     title="Template preview"
-    class="h-[560px] w-full rounded-lg border border-line"
+    class="h-[560px] w-full rounded-lg border border-border"
     srcdoc={previewHtml}
   ></iframe>
 </Modal>

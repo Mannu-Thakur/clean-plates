@@ -11,7 +11,7 @@ let counter = 1;
 
 export function notify(message: string, type: Toast['type'] = 'info') {
   const id = counter++;
-  toasts.update((items) => [...items, { id, message, type }]);
+  toasts.update((items) => [...items, { id, message, type }].slice(-5));
   setTimeout(() => dismissToast(id), 4200);
 }
 

@@ -6,14 +6,14 @@ This report was produced by cross-referencing every plan file **line-by-line** a
 
 ## Summary Table
 
-| Plan File | Real Issues Remaining | Original Report False Positives |
-|-----------|----------------------|----------------------------------|
-| `01-foundation-design-system.md` | 0 | 2 (both already correct in plan) |
-| `02-dashboard-and-monitoring.md` | 0 | 0 |
-| `03-analytics-and-students.md` | 6 real issues | 3 false positives |
-| `04-warnings-and-rules.md` | 3 real issues | 3 false positives |
-| `05-notifications-reports-devices.md` | 0 | 0 |
-| `06-config-settings-audit.md` | 5 real issues | 5 false positives |
+| Plan File                             | Real Issues Remaining | Original Report False Positives  |
+| ------------------------------------- | --------------------- | -------------------------------- |
+| `01-foundation-design-system.md`      | 0                     | 2 (both already correct in plan) |
+| `02-dashboard-and-monitoring.md`      | 0                     | 0                                |
+| `03-analytics-and-students.md`        | 6 real issues         | 3 false positives                |
+| `04-warnings-and-rules.md`            | 3 real issues         | 3 false positives                |
+| `05-notifications-reports-devices.md` | 0                     | 0                                |
+| `06-config-settings-audit.md`         | 5 real issues         | 5 false positives                |
 
 ---
 
@@ -54,14 +54,18 @@ The following issues were claimed but are **already correct** in the plan:
 ### ✅ CONFIRMED — Issue 1: Analytics filter param names wrong (Line 52)
 
 **Evidence:** `app/routers/analytics.py` `analytics_filters` dependency uses:
+
 ```python
 date_from: date | None = Query(default=None)
 date_to:   date | None = Query(default=None)
 ```
+
 Plan line 52 shows:
+
 ```
 GET /api/v1/analytics/overview?period=...&start_date=...&end_date=...&branch=...
 ```
+
 **`start_date` and `end_date` do not exist.** The correct parameter names are `date_from` and `date_to`.
 
 **Fix:** Replace `start_date=` with `date_from=` and `end_date=` with `date_to=` on line 52 and all similar analytics API call examples.
@@ -87,9 +91,11 @@ GET /api/v1/analytics/overview?period=...&start_date=...&end_date=...&branch=...
 ### ✅ CONFIRMED — Issue 4: Manual warn endpoint wrong (Lines 247, 342)
 
 **Evidence:** `app/routers/students.py` line 225:
+
 ```python
 @router.post("/{student_id}/warnings", ...)
 ```
+
 Plan line 247 (Quick Warn Modal): `POST /api/v1/students/{id}/warn`
 Plan line 342 (Profile API table): `POST /api/v1/students/{id}/warn`
 
@@ -102,9 +108,11 @@ Plan line 342 (Profile API table): `POST /api/v1/students/{id}/warn`
 ### ✅ CONFIRMED — Issue 5: Bulk warn endpoint wrong (Line 343)
 
 **Evidence:** `app/routers/students.py` line 116:
+
 ```python
 @router.post("/bulk/warn", ...)
 ```
+
 Plan line 343: `POST /api/v1/students/{id}/bulk-warn`
 
 **`/{id}/bulk-warn` does not exist.** Bulk warn is a collection endpoint (no student ID in path).
@@ -118,17 +126,19 @@ Plan line 343: `POST /api/v1/students/{id}/bulk-warn`
 **Evidence:** `app/routers/students.py` `list_students` query params are: `status_filter` (alias `status`), `hostel`, `branch`, `year`, `page`, `size`, `sort`, `order`. There is **no `search` param and no `warning_status` param**.
 
 Plan lines 296–304:
+
 ```typescript
 export interface StudentFilters {
-  search?: string;           // ← does not exist in backend
+  search?: string; // ← does not exist in backend
   status?: string;
   branch?: string;
-  warning_status?: 'active' | 'resolved';  // ← does not exist in backend
+  warning_status?: 'active' | 'resolved'; // ← does not exist in backend
   page?: number;
   size?: number;
   sort?: string;
 }
 ```
+
 Also, the FilterBar description at line 188 shows `[Warning▼]` filter — this maps to no backend param.
 
 **Fix:** Remove `search` and `warning_status` from `StudentFilters`. Add `hostel?: string` and `year?: number`. Update FilterBar to remove the warning status filter (replace with `hostel` filter). The `[Search]` input can remain as a **client-side** filter only, or be removed.
@@ -158,6 +168,7 @@ The following issues were claimed but are **already correct** in the plan:
 ### ✅ CONFIRMED — Issue 2: Create Manual Warning wrong endpoint (Line 110)
 
 **Evidence:** There is **no `POST /api/v1/warnings`** endpoint in `warnings.py`. Warnings are created via:
+
 ```python
 # students.py line 225
 @router.post("/{student_id}/warnings", ...)
@@ -172,6 +183,7 @@ Plan line 110 (Create Manual Warning Modal submit): `Submit → POST /api/v1/war
 ### ✅ CONFIRMED — Issue 3: Create Direct Penalty wrong endpoint (Line 138)
 
 **Evidence:** `app/routers/warnings.py` has no `POST /warnings/penalties`. Direct penalty creation is:
+
 ```python
 # students.py line 242
 @router.post("/{student_id}/penalties", ...)
@@ -208,9 +220,11 @@ The following issues were claimed but are **already correct** in the plan:
 ### ✅ CONFIRMED — Issue 1: Config reset path has wrong segment order (Line 142)
 
 **Evidence:** `app/routers/config.py` line 129:
+
 ```python
 @router.post("/reset/{section}", ...)
 ```
+
 Full path: `POST /api/v1/config/reset/{section}`
 
 Plan line 142: `POST /api/v1/config/{section}/reset` — **segment order is reversed**.
@@ -222,9 +236,11 @@ Plan line 142: `POST /api/v1/config/{section}/reset` — **segment order is reve
 ### ✅ CONFIRMED — Issue 2: System info endpoint missing `/maintenance/` prefix in prose (Line 378)
 
 **Evidence:** `app/routers/settings.py` line 184:
+
 ```python
 @router.get("/maintenance/system-info", ...)
 ```
+
 Plan line 378 (Maintenance tab prose, outside the API table): `Fetch from GET /api/v1/settings/system-info on tab open.`
 
 **Fix:** Change line 378 to `Fetch from GET /api/v1/settings/maintenance/system-info on tab open.`
@@ -234,9 +250,11 @@ Plan line 378 (Maintenance tab prose, outside the API table): `Fetch from GET /a
 ### ✅ CONFIRMED — Issue 3: Optimize DB endpoint wrong in prose (Line 392)
 
 **Evidence:** `app/routers/settings.py` line 176:
+
 ```python
 @router.post("/maintenance/optimize-db", ...)
 ```
+
 Plan line 392 (Database Optimization section): `"Optimize Database" button → POST /api/v1/settings/optimize`
 
 **Fix:** Change line 392 to `POST /api/v1/settings/maintenance/optimize-db`.
@@ -248,9 +266,11 @@ Plan line 392 (Database Optimization section): `"Optimize Database" button → P
 **Evidence:** Backend has no DELETE endpoint for users. Only `POST /settings/users/{id}/deactivate` exists.
 
 Plan lines 560–564 (settings store definition):
+
 ```typescript
 // Actions: fetchUsers(), createUser(data), updateUser(id, data), deleteUser(id), ...
 ```
+
 `deleteUser` does not correspond to any backend endpoint.
 
 **Fix:** Change `deleteUser(id)` to `deactivateUser(id)` in the store actions comment.
@@ -271,22 +291,22 @@ Plan line 612: `- [ ] Delete user: confirm dialog, cannot delete self`
 
 The following are the **actual corrections required** in plan files as of this verification:
 
-| # | File | Line(s) | Change Required |
-|---|------|---------|-----------------|
-| 1 | `03-analytics-and-students.md` | 52 | `start_date=` → `date_from=`, `end_date=` → `date_to=` |
-| 2 | `03-analytics-and-students.md` | 77–83 | Remove `GET /analytics/branch-comparison` — endpoint does not exist; note tab is unsupported |
-| 3 | `03-analytics-and-students.md` | 89 | `GET /analytics/sustainability-scores` → `GET /analytics/sustainability` |
-| 4 | `03-analytics-and-students.md` | 247, 342 | `/students/{id}/warn` → `/students/{id}/warnings` |
-| 5 | `03-analytics-and-students.md` | 343 | `/students/{id}/bulk-warn` → `/students/bulk/warn` (no student ID in path) |
-| 6 | `03-analytics-and-students.md` | 296–304 | Remove `search` and `warning_status` from `StudentFilters`; add `hostel?: string`, `year?: number` |
-| 7 | `04-warnings-and-rules.md` | 36 | Remove `GET /api/v1/warnings/{id}` — endpoint does not exist |
-| 8 | `04-warnings-and-rules.md` | 110 | `POST /api/v1/warnings` → `POST /api/v1/students/{student_id}/warnings` |
-| 9 | `04-warnings-and-rules.md` | 138 | `POST /api/v1/warnings/penalties` → `POST /api/v1/students/{student_id}/penalties` |
-| 10 | `06-config-settings-audit.md` | 142 | `POST /config/{section}/reset` → `POST /config/reset/{section}` |
-| 11 | `06-config-settings-audit.md` | 378 | `GET /settings/system-info` → `GET /settings/maintenance/system-info` |
-| 12 | `06-config-settings-audit.md` | 392 | `POST /settings/optimize` → `POST /settings/maintenance/optimize-db` |
-| 13 | `06-config-settings-audit.md` | 560–564 | `deleteUser(id)` → `deactivateUser(id)` in store actions comment |
-| 14 | `06-config-settings-audit.md` | 612 | `Delete user` → `Deactivate user` in verification checklist |
+| #   | File                           | Line(s)  | Change Required                                                                                    |
+| --- | ------------------------------ | -------- | -------------------------------------------------------------------------------------------------- |
+| 1   | `03-analytics-and-students.md` | 52       | `start_date=` → `date_from=`, `end_date=` → `date_to=`                                             |
+| 2   | `03-analytics-and-students.md` | 77–83    | Remove `GET /analytics/branch-comparison` — endpoint does not exist; note tab is unsupported       |
+| 3   | `03-analytics-and-students.md` | 89       | `GET /analytics/sustainability-scores` → `GET /analytics/sustainability`                           |
+| 4   | `03-analytics-and-students.md` | 247, 342 | `/students/{id}/warn` → `/students/{id}/warnings`                                                  |
+| 5   | `03-analytics-and-students.md` | 343      | `/students/{id}/bulk-warn` → `/students/bulk/warn` (no student ID in path)                         |
+| 6   | `03-analytics-and-students.md` | 296–304  | Remove `search` and `warning_status` from `StudentFilters`; add `hostel?: string`, `year?: number` |
+| 7   | `04-warnings-and-rules.md`     | 36       | Remove `GET /api/v1/warnings/{id}` — endpoint does not exist                                       |
+| 8   | `04-warnings-and-rules.md`     | 110      | `POST /api/v1/warnings` → `POST /api/v1/students/{student_id}/warnings`                            |
+| 9   | `04-warnings-and-rules.md`     | 138      | `POST /api/v1/warnings/penalties` → `POST /api/v1/students/{student_id}/penalties`                 |
+| 10  | `06-config-settings-audit.md`  | 142      | `POST /config/{section}/reset` → `POST /config/reset/{section}`                                    |
+| 11  | `06-config-settings-audit.md`  | 378      | `GET /settings/system-info` → `GET /settings/maintenance/system-info`                              |
+| 12  | `06-config-settings-audit.md`  | 392      | `POST /settings/optimize` → `POST /settings/maintenance/optimize-db`                               |
+| 13  | `06-config-settings-audit.md`  | 560–564  | `deleteUser(id)` → `deactivateUser(id)` in store actions comment                                   |
+| 14  | `06-config-settings-audit.md`  | 612      | `Delete user` → `Deactivate user` in verification checklist                                        |
 
 ---
 

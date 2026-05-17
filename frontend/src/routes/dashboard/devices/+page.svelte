@@ -185,7 +185,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Devices</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Raspberry Pi identity and health
     </h2>
   </div>
@@ -238,7 +238,7 @@
   <div class="flex flex-wrap items-end gap-3">
     <label
       ><span class="label">Status</span><select
-        class="field mt-2"
+        class="select-field mt-2"
         bind:value={statusFilter}
         id="select-device-status"
         ><option value="">All</option><option>online</option><option
@@ -251,19 +251,19 @@
 
 <Card class="mt-5" title={viewMode === 'grid' ? 'Device grid' : 'Device list'}>
   {#if error}<div
-      class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral"
+      class="rounded-md border border-down/30 bg-down/10 p-3 text-down"
     >
       {error}
     </div>
   {:else if loading}<div
-      class="h-96 animate-pulse rounded-lg bg-slate-100"
+      class="h-96 animate-pulse rounded-lg bg-elevated"
     ></div>
   {:else if devices.items.length === 0}<EmptyState title="No devices" />
   {:else if viewMode === 'grid'}
     <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
       {#each devices.items as device}
         <button
-          class="rounded-lg border border-line bg-white p-4 text-left transition hover:border-fresh"
+          class="rounded-lg border border-border bg-card p-4 text-left transition hover:border-primary"
           on:click={() => openDetail(device)}
           id={`card-device-${device.id}`}
         >
@@ -287,22 +287,19 @@
   {:else}
     <div class="overflow-auto">
       <table>
-        <thead class="table-head"
+        <thead class="bg-elevated"
           ><tr
-            ><th class="table-cell">Name</th><th class="table-cell">Mess</th><th
-              class="table-cell">Status</th
-            ><th class="table-cell">Last heartbeat</th><th class="table-cell"
-              >Actions</th
-            ></tr
+            ><th class="th">Name</th><th class="th">Mess</th><th class="th"
+              >Status</th
+            ><th class="th">Last heartbeat</th><th class="th">Actions</th></tr
           ></thead
         ><tbody
           >{#each devices.items as device}<tr
-              ><td class="table-cell">{device.edge_node_name}</td><td
-                class="table-cell">{device.mess_name}</td
-              ><td class="table-cell"
-                ><StatusBadge value={device.status} compact /></td
-              ><td class="table-cell">{dateTime(device.last_heartbeat)}</td><td
-                class="table-cell"
+              ><td class="td">{device.edge_node_name}</td><td class="td"
+                >{device.mess_name}</td
+              ><td class="td"><StatusBadge value={device.status} compact /></td
+              ><td class="td">{dateTime(device.last_heartbeat)}</td><td
+                class="td"
                 ><Button
                   size="sm"
                   variant="secondary"
@@ -328,28 +325,28 @@
       <div class="space-y-4">
         <label
           ><span class="label">Name</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             bind:value={detail.edge_node_name}
           /></label
         >
         <label
           ><span class="label">Mess</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             bind:value={detail.mess_name}
           /></label
         >
         <label
           ><span class="label">Hostel</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             bind:value={detail.hostel_name}
           /></label
         >
         <div class="grid grid-cols-2 gap-3 text-sm">
-          <div class="rounded-lg bg-slate-50 p-3">
+          <div class="rounded-lg bg-elevated p-3">
             <span class="label">CPU</span>
             <p class="mt-1 font-semibold">{number(health?.cpu_percent)}%</p>
           </div>
-          <div class="rounded-lg bg-slate-50 p-3">
+          <div class="rounded-lg bg-elevated p-3">
             <span class="label">RAM</span>
             <p class="mt-1 font-semibold">{number(health?.ram_percent)}%</p>
           </div>
@@ -410,101 +407,101 @@
   >
     <label
       ><span class="label">Device serial</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.device_serial}
         required
       /></label
     >
     <label
       ><span class="label">Edge node name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.edge_node_name}
         required
       /></label
     >
     <label
       ><span class="label">Institution</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.institution_name}
         required
       /></label
     >
     <label
       ><span class="label">Institution code</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.institution_code}
         required
       /></label
     >
     <label
       ><span class="label">Campus</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.campus_name}
         required
       /></label
     >
     <label
       ><span class="label">Mess name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.mess_name}
         required
       /></label
     >
     <label
       ><span class="label">Mess ID</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.mess_id}
         required
       /></label
     >
     <label
       ><span class="label">Hostel</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.hostel_name}
       /></label
     >
     <label
       ><span class="label">Hostel block</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.hostel_block}
       /></label
     >
     <label
       ><span class="label">Floor</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="number"
         bind:value={form.floor_number}
       /></label
     >
     <label
       ><span class="label">Wing</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.wing_section}
       /></label
     >
     <label
       ><span class="label">Capacity</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="number"
         bind:value={form.capacity}
       /></label
     >
     <label
       ><span class="label">Meal capacity/day</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="number"
         bind:value={form.meal_capacity_per_day}
       /></label
     >
     <label
       ><span class="label">Managed by</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.managed_by}
       /></label
     >
     <label
       ><span class="label">Admin contact</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={form.admin_contact}
       /></label
     >

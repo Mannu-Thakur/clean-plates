@@ -205,7 +205,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Student mapping</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Device IDs and student profiles
     </h2>
   </div>
@@ -228,7 +228,7 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
     <label
       ><span class="label">Status</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.status}
         id="select-filter-status"
         ><option value="">All</option><option>green</option><option
@@ -238,20 +238,20 @@
     >
     <label
       ><span class="label">Hostel</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.hostel}
         id="select-filter-hostel"
       /></label
     >
     <label
       ><span class="label">Branch</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.branch}
       /></label
     >
     <label
       ><span class="label">Year</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.year}
         ><option value="">All</option><option>1</option><option>2</option
         ><option>3</option><option>4</option></select
@@ -310,11 +310,11 @@
   description="Mapping calls use the student UUID, not the card device ID."
 >
   {#if error}
-    <div class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral">
+    <div class="rounded-md border border-down/30 bg-down/10 p-3 text-down">
       {error}
     </div>
   {:else if loading}
-    <div class="h-96 animate-pulse rounded-lg bg-slate-100"></div>
+    <div class="h-96 animate-pulse rounded-lg bg-elevated"></div>
   {:else if response.items.length === 0}
     <EmptyState
       title="No students"
@@ -323,9 +323,9 @@
   {:else}
     <div class="overflow-auto">
       <table>
-        <thead class="table-head">
+        <thead class="bg-elevated">
           <tr>
-            <th class="table-cell"
+            <th class="th"
               ><input
                 id="chk-select-all"
                 type="checkbox"
@@ -333,42 +333,40 @@
                 on:change={selectAll}
               /></th
             >
-            <th class="table-cell"
+            <th class="th"
               ><button on:click={() => toggleSort('status')}>Status</button></th
             >
-            <th class="table-cell"
+            <th class="th"
               ><button on:click={() => toggleSort('device_id')}
                 >Device ID</button
               ></th
             >
-            <th class="table-cell">Mapped Name</th>
-            <th class="table-cell"
+            <th class="th">Mapped Name</th>
+            <th class="th"
               ><button on:click={() => toggleSort('warning_count')}
                 >Warnings</button
               ></th
             >
-            <th class="table-cell">Avg Waste</th>
-            <th class="table-cell">Actions</th>
+            <th class="th">Avg Waste</th>
+            <th class="th">Actions</th>
           </tr>
         </thead>
         <tbody>
           {#each response.items as student (student.id)}
             <tr>
-              <td class="table-cell"
+              <td class="td"
                 ><input
                   type="checkbox"
                   checked={selected.has(student.id)}
                   on:change={() => toggleSelected(student.id)}
                 /></td
               >
-              <td class="table-cell"
-                ><StatusBadge value={student.status} compact /></td
-              >
-              <td class="table-cell font-mono text-xs">{student.device_id}</td>
-              <td class="table-cell">
+              <td class="td"><StatusBadge value={student.status} compact /></td>
+              <td class="td font-mono text-xs">{student.device_id}</td>
+              <td class="td">
                 {#if student.mapping}
                   <a
-                    class="font-semibold text-fresh"
+                    class="font-semibold text-primary"
                     href={`/dashboard/students/${student.id}`}
                     >{student.mapping.name}</a
                   >
@@ -380,13 +378,13 @@
                   <StatusBadge value="unmapped" compact />
                 {/if}
               </td>
-              <td class="table-cell"
+              <td class="td"
                 >{number(student.warning_count)} warnings · {number(
                   student.penalty_count
                 )} penalties</td
               >
-              <td class="table-cell">{grams(student.avg_waste_grams)}</td>
-              <td class="table-cell">
+              <td class="td">{grams(student.avg_waste_grams)}</td>
+              <td class="td">
                 <div class="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -396,7 +394,7 @@
                     >{student.mapping ? 'Edit' : 'Map'}</Button
                   >
                   <a
-                    class="inline-flex h-9 items-center rounded-md border border-line px-3 text-xs font-semibold hover:border-fresh"
+                    class="inline-flex h-9 items-center rounded-md border border-border px-3 text-xs font-semibold hover:border-primary"
                     href={`/dashboard/students/${student.id}`}>Open</a
                   >
                 </div>
@@ -447,7 +445,7 @@
           }}>Next</Button
         >
         <select
-          class="field"
+          class="select-field"
           bind:value={size}
           on:change={() => {
             page = 1;
@@ -476,28 +474,28 @@
   >
     <label
       ><span class="label">Full name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={mapping.name}
         required
       /></label
     >
     <label
       ><span class="label">Roll number</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={mapping.roll_number}
         required
       /></label
     >
     <label
       ><span class="label">Branch</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={mapping.branch}
         required
       /></label
     >
     <label
       ><span class="label">Year</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="number"
         min="1"
         max="4"
@@ -507,19 +505,19 @@
     >
     <label
       ><span class="label">Hostel</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={mapping.hostel}
       /></label
     >
     <label
       ><span class="label">Room</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={mapping.room_number}
       /></label
     >
     <label class="sm:col-span-2"
       ><span class="label">Email</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="email"
         bind:value={mapping.email}
       /></label
@@ -543,7 +541,7 @@
 >
   <div class="space-y-4">
     <input
-      class="field w-full py-2"
+      class="input-field w-full py-2"
       type="file"
       accept=".csv,text/csv"
       on:change={(event) =>

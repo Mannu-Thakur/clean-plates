@@ -26,14 +26,19 @@
   ></button>
 
   <!-- Panel -->
-  <div class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
-    <section
+  <div
+    class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4"
+  >
+    <div
       class={`pointer-events-auto max-h-[90vh] w-full overflow-hidden card ${wide ? 'max-w-5xl' : 'max-w-xl'}`}
       role="dialog"
       aria-modal="true"
       aria-label={title}
+      tabindex="-1"
     >
-      <header class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+      <header
+        class="flex items-start justify-between gap-4 border-b border-border px-5 py-4"
+      >
         <div>
           <h2 class="text-base font-semibold text-body">{title}</h2>
           {#if description}
@@ -52,6 +57,6 @@
       <div class="max-h-[calc(90vh-76px)] overflow-auto p-5">
         <slot />
       </div>
-    </section>
+    </div>
   </div>
 {/if}

@@ -20,7 +20,8 @@
     navItems.find(
       (item) =>
         $page.url.pathname === item.href ||
-        $page.url.pathname.startsWith(`${item.href}/`)
+        ($page.url.pathname.startsWith(`${item.href}/`) &&
+          item.href !== '/dashboard')
     )?.label ?? 'Dashboard';
 
   onMount(async () => {
@@ -40,27 +41,29 @@
 
 {#if $auth.user}
   <div
-    class="min-h-screen lg:grid"
-    class:lg:grid-cols-[76px_1fr]={collapsed}
-    class:lg:grid-cols-[260px_1fr]={!collapsed}
+    class="min-h-screen bg-canvas text-body lg:grid"
+    class:lg:grid-cols-[76px_minmax(0,1fr)]={collapsed}
+    class:lg:grid-cols-[260px_minmax(0,1fr)]={!collapsed}
   >
     <aside
-      class={`fixed inset-y-0 left-0 z-40 flex w-72 transform flex-col border-r border-line bg-white transition lg:static lg:w-auto lg:translate-x-0 ${
+      class={`fixed inset-y-0 left-0 z-40 flex w-[260px] transform flex-col border-r border-border bg-card transition lg:static lg:w-auto lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >
       <div
-        class="flex h-16 items-center justify-between border-b border-line px-4"
+        class="flex h-16 items-center justify-between border-b border-border px-4"
       >
         <a href="/dashboard" class="flex min-w-0 items-center gap-3">
           <div
-            class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-fresh text-lg font-bold text-white"
+            class="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary text-lg font-bold text-ink"
           >
             CP
           </div>
           {#if !collapsed}
             <div class="min-w-0">
-              <p class="truncate text-sm font-semibold text-ink">CleanPlates</p>
+              <p class="truncate text-sm font-semibold text-body">
+                CleanPlates
+              </p>
               <p class="truncate text-xs text-muted">Waste intelligence</p>
             </div>
           {/if}
@@ -82,11 +85,7 @@
             ($page.url.pathname.startsWith(`${item.href}/`) &&
               item.href !== '/dashboard')}
           <a
-            class={`flex h-11 items-center gap-3 rounded-md px-3 text-sm font-semibold transition ${
-              active
-                ? 'bg-fresh text-white'
-                : 'text-muted hover:bg-slate-100 hover:text-ink'
-            }`}
+            class={`nav-item ${collapsed ? 'justify-center px-0' : ''} ${active ? 'nav-item-active' : ''}`}
             href={item.href}
             title={item.label}
             on:click={() => (mobileOpen = false)}
@@ -99,12 +98,12 @@
         {/each}
       </nav>
 
-      <div class="border-t border-line p-3">
+      <div class="border-t border-border p-3">
         <div
-          class={`rounded-lg bg-slate-50 p-3 ${collapsed ? 'text-center' : ''}`}
+          class={`rounded-lg border border-border bg-elevated p-3 ${collapsed ? 'text-center' : ''}`}
         >
           {#if !collapsed}
-            <p class="truncate text-sm font-semibold text-ink">
+            <p class="truncate text-sm font-semibold text-body">
               {$auth.user.name}
             </p>
             <p class="truncate text-xs text-muted">{$auth.user.email}</p>
@@ -120,7 +119,7 @@
 
     {#if mobileOpen}
       <button
-        class="fixed inset-0 z-30 bg-ink/30 lg:hidden"
+        class="fixed inset-0 z-30 bg-canvas/80 lg:hidden"
         aria-label="Close navigation"
         on:click={() => (mobileOpen = false)}
       ></button>
@@ -128,7 +127,7 @@
 
     <div class="min-w-0">
       <header
-        class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-line bg-white/92 px-4 backdrop-blur lg:px-6"
+        class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-canvas/95 px-4 backdrop-blur lg:px-6"
       >
         <button
           class="icon-btn lg:hidden"
@@ -142,15 +141,17 @@
           <p class="text-xs font-semibold uppercase tracking-normal text-muted">
             CleanPlates
           </p>
-          <h1 class="truncate text-lg font-semibold text-ink">{activeTitle}</h1>
+          <h1 class="truncate text-lg font-semibold text-body">
+            {activeTitle}
+          </h1>
         </div>
         <label
-          class="hidden min-w-64 items-center gap-2 rounded-md border border-line bg-field px-3 lg:flex"
+          class="hidden min-w-64 items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary lg:flex"
         >
           <Search size={16} class="text-muted" />
           <input
             bind:value={query}
-            class="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
+            class="h-10 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
             placeholder="Search current view"
           />
         </label>
@@ -167,9 +168,9 @@
   </div>
 {:else}
   <div class="grid min-h-screen place-items-center px-4">
-    <div class="surface w-full max-w-sm p-6 text-center">
+    <div class="card w-full max-w-sm p-6 text-center">
       <div
-        class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-line border-t-fresh"
+        class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-primary"
       ></div>
       <p class="mt-3 text-sm text-muted">Checking session</p>
     </div>

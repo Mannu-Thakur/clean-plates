@@ -4,6 +4,7 @@
 **Depends on:** Phase 1 (tokens, components), Phase 2 (ChartCard patterns)  
 **Required before:** Phase 4 (DataTable, FilterBar, Pagination reused)  
 **Pages implemented:**
+
 - Page 04: `/dashboard/analytics` — Full Analytics Suite (tabbed)
 - Page 05: `/dashboard/students` — Student List & Management
 - Page 06: `/dashboard/students/[id]` — Student Intelligence Profile
@@ -13,6 +14,7 @@
 ## Page 04 — Analytics Suite (`/dashboard/analytics`)
 
 ### Route: `src/routes/dashboard/analytics/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin, analytics_viewer (read-only)
 
 ### Layout — Tabbed Interface
@@ -30,6 +32,7 @@
 ### Global Filter Bar (persists across all tabs)
 
 Component: `FilterBar.svelte` with:
+
 - `DateRangePicker` (start, end dates)
 - `SelectField` Branch filter (options from `GET /api/v1/config/branches`)
 - `SelectField` Meal filter (All / Breakfast / Lunch / Dinner)
@@ -38,6 +41,7 @@ Component: `FilterBar.svelte` with:
 - Reset filters button
 
 #### Filter Preset Store: `src/lib/stores/filterPreset.ts`
+
 ```typescript
 // fetchPresets()  → GET /api/v1/filter-presets
 // savePreset(name, filters) → POST /api/v1/filter-presets
@@ -49,9 +53,11 @@ Component: `FilterBar.svelte` with:
 ### Tab 1: Overview
 
 **API Calls:**
+
 - `GET /api/v1/analytics/overview?period=...&date_from=...&date_to=...&branch=...`
 
 **Components:**
+
 - 4 large StatCards: Total Waste, Avg per Student, Reduction %, Active Students
 - 2-column chart grid: Line + Bar (same as dashboard but with filter context)
 
@@ -60,12 +66,14 @@ Component: `FilterBar.svelte` with:
 ### Tab 2: Trends
 
 **API Calls:**
+
 - `GET /api/v1/analytics/trends?type=weekly` → weekly line chart
 - `GET /api/v1/analytics/trends?type=monthly_comparison` → grouped bar
 - `GET /api/v1/analytics/trends?type=daily_pattern` → 7-day day-of-week breakdown
 - `GET /api/v1/analytics/peaks?...` → peak meal and peak hour
 
 **Components:**
+
 - 3 ChartCards stacked (full-width then 2-col)
 - Peak stats row: 3 StatCards (Peak Meal, Peak Hour, Peak Weekday)
 
@@ -76,9 +84,11 @@ Component: `FilterBar.svelte` with:
 > **Note:** There is no `/api/v1/analytics/branch-comparison` endpoint in the backend. Derive branch data client-side by calling `GET /api/v1/analytics/overview` once per branch in a `Promise.all()` (using the `branch=` filter param), then aggregate the results. This tab should be marked **"Coming Soon"** or hidden behind a feature flag until the backend adds a dedicated endpoint.
 
 **API Calls (workaround):**
+
 - `GET /api/v1/analytics/overview?branch={branchCode}&date_from=...&date_to=...` — called per branch in parallel
 
 **Components:**
+
 - Grouped bar chart: one bar per branch, side-by-side comparison (derived from parallel overview calls)
 - Branch table below: DataTable with columns [Branch, Total Waste, Avg/Student, Active Students]
 - No export available (no backend endpoint); hide Export button for this tab
@@ -88,9 +98,11 @@ Component: `FilterBar.svelte` with:
 ### Tab 4: Sustainability Scores
 
 **API Calls:**
+
 - `GET /api/v1/analytics/sustainability?branch=...&year=...&hostel=...&status=...`
 
 **Components:**
+
 - Score gauge (large center): institutional sustainability score (0–100)
 - Breakdown: 4 metric contributors as progress bars
   - Weight reduction trend
@@ -105,10 +117,12 @@ Component: `FilterBar.svelte` with:
 ### Tab 5: Heatmap
 
 **API Calls:**
+
 - `GET /api/v1/analytics/trends?type=daily_pattern&...` — returns 7-day breakdown
   - **Note:** There is no dedicated `/analytics/heatmap` endpoint. Derive the 7×24 heatmap grid client-side by transforming the `daily_pattern` trend data. Map each day's hourly entry counts into a grid of opacity levels.
 
 **Components:**
+
 - 7×24 grid heatmap: rows = days of week, columns = hours of day (derived from `daily_pattern` data)
 - Cell color: `bg-canvas` (0) → `bg-primary/20` → `bg-primary/60` → `bg-primary` (max)
 - No external heatmap library — pure CSS grid with inline opacity levels
@@ -116,15 +130,18 @@ Component: `FilterBar.svelte` with:
 - Legend: gradient strip with min/max labels
 
 **Client-side derivation:**
+
 ```typescript
 // Transform TrendData into heatmap grid
 function buildHeatmapGrid(trendData: TrendData): number[][] {
   // 7 rows (days) x 24 cols (hours), default 0
   const grid = Array.from({ length: 7 }, () => new Array(24).fill(0));
   // Fill from daily_pattern data — each TrendPoint has label = "Mon 09:00" etc.
-  trendData.data?.forEach(p => {
+  trendData.data?.forEach((p) => {
     const [dayStr, hourStr] = p.label.split(' ');
-    const dayIdx = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].indexOf(dayStr);
+    const dayIdx = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(
+      dayStr
+    );
     const hour = parseInt(hourStr?.split(':')[0] ?? '0', 10);
     if (dayIdx >= 0 && hour >= 0) grid[dayIdx][hour] = p.value;
   });
@@ -137,7 +154,10 @@ function buildHeatmapGrid(trendData: TrendData): number[][] {
 ### API Types (add to `src/lib/api/types.ts`)
 
 ```typescript
-export interface TrendPoint { label: string; value: number; }
+export interface TrendPoint {
+  label: string;
+  value: number;
+}
 export interface TrendData {
   data?: TrendPoint[];
   current_label?: string;
@@ -179,6 +199,7 @@ export interface FilterPreset {
 ## Page 05 — Student List (`/dashboard/students`)
 
 ### Route: `src/routes/dashboard/students/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin, analytics_viewer (read-only)
 
 ### Layout
@@ -198,41 +219,42 @@ export interface FilterPreset {
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| List students | `GET /api/v1/students?page=&size=&status=&branch=&hostel=&year=&sort=&order=` |
-| Create warning | `POST /api/v1/students/{id}/warnings` |
-| Update mapping | `PATCH /api/v1/students/{id}/map` |
+| Action                | Endpoint                                                                          |
+| --------------------- | --------------------------------------------------------------------------------- |
+| List students         | `GET /api/v1/students?page=&size=&status=&branch=&hostel=&year=&sort=&order=`     |
+| Create warning        | `POST /api/v1/students/{id}/warnings`                                             |
+| Update mapping        | `PATCH /api/v1/students/{id}/map`                                                 |
 | Import mappings (CSV) | `POST /api/v1/students/import-mapping` (multipart file upload, field: `csv_file`) |
-| Export CSV | `GET /api/v1/students/export` → `api.download()` |
-| View student | Navigate to `/dashboard/students/{id}` |
+| Export CSV            | `GET /api/v1/students/export` → `api.download()`                                  |
+| View student          | Navigate to `/dashboard/students/{id}`                                            |
 
 ### DataTable Columns
 
-| Column | Field | Sortable | Width |
-|--------|-------|----------|-------|
-| Name | `name` | Yes | 200px |
-| Roll No. | `student_id` | Yes | 120px |
-| Branch | `branch` | Yes | 100px |
-| Status | `status` (badge) | Yes | 100px |
-| Warnings | `warning_count` | Yes | 90px |
-| Penalties | `penalty_count` | Yes | 90px |
-| Last Waste | `last_waste_at` | Yes | 130px |
-| Mapped | `is_mapped` (badge) | No | 80px |
-| Actions | — | No | 100px |
+| Column     | Field               | Sortable | Width |
+| ---------- | ------------------- | -------- | ----- |
+| Name       | `name`              | Yes      | 200px |
+| Roll No.   | `student_id`        | Yes      | 120px |
+| Branch     | `branch`            | Yes      | 100px |
+| Status     | `status` (badge)    | Yes      | 100px |
+| Warnings   | `warning_count`     | Yes      | 90px  |
+| Penalties  | `penalty_count`     | Yes      | 90px  |
+| Last Waste | `last_waste_at`     | Yes      | 130px |
+| Mapped     | `is_mapped` (badge) | No       | 80px  |
+| Actions    | —                   | No       | 100px |
 
 ### Status Badge Mapping
 
-| Student Status | Badge Class | Label |
-|---------------|-------------|-------|
-| `green` | `badge-up` | ✓ Good |
-| `yellow` | `badge-primary` | ⚠ Warning |
-| `orange` | Custom `text-orange-400 bg-orange-400/10` | ⚠ At Risk |
-| `red` | `badge-down` | ✕ Penalty |
+| Student Status | Badge Class                               | Label     |
+| -------------- | ----------------------------------------- | --------- |
+| `green`        | `badge-up`                                | ✓ Good    |
+| `yellow`       | `badge-primary`                           | ⚠ Warning |
+| `orange`       | Custom `text-orange-400 bg-orange-400/10` | ⚠ At Risk |
+| `red`          | `badge-down`                              | ✕ Penalty |
 
 ### Import CSV Modal
 
 Triggered by "Import CSV" button:
+
 1. `FileUpload.svelte` — accepts `.csv` only, max 5MB
 2. Preview: first 5 rows shown in mini table
 3. Confirm → `api.upload('/students/import-mapping', 'csv_file', file)`
@@ -242,6 +264,7 @@ Triggered by "Import CSV" button:
 ### Quick Warn Modal
 
 "Warn" action button → modal with:
+
 - Student name (read-only)
 - Level selector: `SelectField` (yellow / orange / red)
 - Message textarea
@@ -272,7 +295,7 @@ Triggered by "Import CSV" button:
 export interface Student {
   id: string;
   name: string;
-  student_id: string;       // roll number
+  student_id: string; // roll number
   branch: string;
   email?: string;
   phone?: string;
@@ -285,7 +308,7 @@ export interface Student {
   created_at: string;
 }
 export interface StudentMapping {
-  student_id: string;   // face/card ID
+  student_id: string; // face/card ID
   mess_id?: string;
   is_active: boolean;
 }
@@ -297,10 +320,10 @@ export interface ImportResult {
 }
 export interface StudentFilters {
   // Note: no free-text search param exists in the backend — search is client-side only
-  status?: string;          // alias: status_filter in backend
+  status?: string; // alias: status_filter in backend
   branch?: string;
-  hostel?: string;          // added — supported by backend
-  year?: number;            // added — supported by backend (1-4)
+  hostel?: string; // added — supported by backend
+  year?: number; // added — supported by backend (1-4)
   // warning_status removed — does not exist in backend
   page?: number;
   size?: number;
@@ -314,6 +337,7 @@ export interface StudentFilters {
 ## Page 06 — Student Intelligence Profile (`/dashboard/students/[id]`)
 
 ### Route: `src/routes/dashboard/students/[id]/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin, analytics_viewer (read-only)
 
 ### Layout
@@ -334,18 +358,18 @@ export interface StudentFilters {
 
 ### API Calls
 
-| Endpoint | Used For |
-|----------|----------|
-| `GET /api/v1/students/{id}` | Profile data |
-| `GET /api/v1/students/{id}/stats` | Overview tab |
-| `GET /api/v1/students/{id}/timeline` | Timeline tab |
-| `GET /api/v1/students/{id}/food-breakdown` | Food tab |
-| `GET /api/v1/students/{id}/warnings` | Warnings tab |
-| `GET /api/v1/students/{id}/meal-pattern` | Timeline tab |
-| `GET /api/v1/students/{id}/improvement` | Overview tab |
-| `GET /api/v1/students/{id}/history` | Timeline tab |
-| `POST /api/v1/students/{id}/warnings` | Manual warn button |
-| `POST /api/v1/students/bulk/warn` | Bulk warn (admin) — body: `BulkWarnSchema` (list of student IDs + level + message) |
+| Endpoint                                   | Used For                                                                           |
+| ------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `GET /api/v1/students/{id}`                | Profile data                                                                       |
+| `GET /api/v1/students/{id}/stats`          | Overview tab                                                                       |
+| `GET /api/v1/students/{id}/timeline`       | Timeline tab                                                                       |
+| `GET /api/v1/students/{id}/food-breakdown` | Food tab                                                                           |
+| `GET /api/v1/students/{id}/warnings`       | Warnings tab                                                                       |
+| `GET /api/v1/students/{id}/meal-pattern`   | Timeline tab                                                                       |
+| `GET /api/v1/students/{id}/improvement`    | Overview tab                                                                       |
+| `GET /api/v1/students/{id}/history`        | Timeline tab                                                                       |
+| `POST /api/v1/students/{id}/warnings`      | Manual warn button                                                                 |
+| `POST /api/v1/students/bulk/warn`          | Bulk warn (admin) — body: `BulkWarnSchema` (list of student IDs + level + message) |
 
 ### Left Panel — Profile Card
 
@@ -482,12 +506,15 @@ export interface StudentPenalty {
 ## Shared Components for this Phase
 
 ### `src/lib/components/students/StudentStatusBadge.svelte`
+
 Specialized badge for student status (green/yellow/orange/red) with dot + label.
 
 ### `src/lib/components/students/WasteEntryCard.svelte`
+
 Reusable entry card used in monitoring feed AND student timeline.
 
 ### `src/lib/components/students/MealPatternGrid.svelte`
+
 7×3 mini heatmap grid (days × meal types) — coloured cells by waste level.
 
 ---
@@ -495,6 +522,7 @@ Reusable entry card used in monitoring feed AND student timeline.
 ## Verification Checklist
 
 **Analytics page:**
+
 - [ ] Tab switching works, each tab loads correct data
 - [ ] Date range filter applies to all API calls
 - [ ] Branch filter applies
@@ -505,6 +533,7 @@ Reusable entry card used in monitoring feed AND student timeline.
 - [ ] Export CSV triggers download
 
 **Student list page:**
+
 - [ ] Table loads paginated students
 - [ ] Search debounces and filters
 - [ ] Status filter works
@@ -515,6 +544,7 @@ Reusable entry card used in monitoring feed AND student timeline.
 - [ ] Quick Warn modal submits correctly
 
 **Student profile page:**
+
 - [ ] Profile card shows correct data
 - [ ] Sustainability gauge renders
 - [ ] All tabs load correct data from their respective endpoints

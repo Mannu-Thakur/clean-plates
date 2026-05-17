@@ -7,10 +7,13 @@
   export { klass as class };
 
   $: baseClass =
-    variant === 'primary'   ? 'btn-primary' :
-    variant === 'danger'    ? 'btn-danger' :
-    variant === 'ghost'     ? 'btn-ghost' :
-                              'btn-secondary';
+    variant === 'primary'
+      ? 'btn-primary'
+      : variant === 'danger'
+        ? 'btn-danger'
+        : variant === 'ghost'
+          ? 'btn-ghost'
+          : 'btn-secondary';
 
   $: sizeExtra = size === 'sm' ? 'btn-sm' : '';
 </script>

@@ -133,7 +133,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Audit log</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       System activity and change trail
     </h2>
   </div>
@@ -188,14 +188,14 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
     <label
       ><span class="label">User ID</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.user_id}
         id="select-audit-user"
       /></label
     >
     <label
       ><span class="label">Event type</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.event_type}
         id="select-audit-type"
         placeholder="config.updated"
@@ -203,7 +203,7 @@
     >
     <label
       ><span class="label">Resource</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.resource_type}
         id="select-audit-resource"
         placeholder="config"
@@ -211,21 +211,21 @@
     >
     <label
       ><span class="label">From</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="date"
         bind:value={filters.date_from}
       /></label
     >
     <label
       ><span class="label">To</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="date"
         bind:value={filters.date_to}
       /></label
     >
     <label
       ><span class="label">Search</span><span
-        class="mt-2 flex items-center gap-2 rounded-md border border-line bg-field px-3"
+        class="mt-2 flex items-center gap-2 rounded-md border border-border bg-elevated px-3"
         ><Search size={15} class="text-muted" /><input
           class="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
           bind:value={filters.q}
@@ -246,12 +246,12 @@
 
 <div class="mt-5 flex gap-2">
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'table' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'table' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'table')}
     id="tab-audit-table">Table</button
   >
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'timeline' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'timeline' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'timeline')}
     id="tab-audit-timeline">Timeline</button
   >
@@ -262,41 +262,39 @@
   title={activeTab === 'table' ? 'Audit events' : 'Activity timeline'}
 >
   {#if error}<div
-      class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral"
+      class="rounded-md border border-down/30 bg-down/10 p-3 text-down"
     >
       {error}
     </div>
   {:else if loading}<div
-      class="h-96 animate-pulse rounded-lg bg-slate-100"
+      class="h-96 animate-pulse rounded-lg bg-elevated"
     ></div>
   {:else if activeTab === 'table'}
     {#if events.items.length === 0}<EmptyState title="No audit events" />{:else}
       <div class="overflow-auto">
         <table>
-          <thead class="table-head"
+          <thead class="bg-elevated"
             ><tr
-              ><th class="table-cell"
+              ><th class="th"
                 ><button on:click={() => sortBy('created_at')}>Time</button></th
-              ><th class="table-cell">Event</th><th class="table-cell">User</th
-              ><th class="table-cell">Resource</th><th class="table-cell"
-                >Summary</th
-              ><th class="table-cell">IP</th></tr
+              ><th class="th">Event</th><th class="th">User</th><th class="th"
+                >Resource</th
+              ><th class="th">Summary</th><th class="th">IP</th></tr
             ></thead
           ><tbody
             >{#each events.items as event}<tr
-                class="cursor-pointer hover:bg-slate-50"
+                class="cursor-pointer hover:bg-elevated/50"
                 on:click={() => openDetail(event)}
-                ><td class="table-cell">{dateTime(event.created_at)}</td><td
-                  class="table-cell"
+                ><td class="td">{dateTime(event.created_at)}</td><td class="td"
                   ><StatusBadge value={event.event_type} compact /></td
-                ><td class="table-cell"
+                ><td class="td"
                   >{event.user_name ?? 'System'}
                   <p class="text-xs text-muted">
                     {event.user_role ? titleCase(event.user_role) : ''}
                   </p></td
-                ><td class="table-cell">{titleCase(event.resource_type)}</td><td
-                  class="table-cell">{event.summary}</td
-                ><td class="table-cell">{event.ip_address ?? 'n/a'}</td></tr
+                ><td class="td">{titleCase(event.resource_type)}</td><td
+                  class="td">{event.summary}</td
+                ><td class="td">{event.ip_address ?? 'n/a'}</td></tr
               >{/each}</tbody
           >
         </table>
@@ -324,7 +322,7 @@
             loadAudit();
           }}>Next</Button
         ><select
-          class="field"
+          class="select-field"
           bind:value={filters.size}
           on:change={() => {
             filters.page = 1;
@@ -342,16 +340,16 @@
     />{:else}
     <div class="space-y-4">
       {#each timeline.groups as group}<div
-          class="rounded-lg border border-line p-4"
+          class="rounded-lg border border-border p-4"
         >
           <p class="font-semibold">
             {group.user_name} · {shortDate(group.date)}
           </p>
           <div class="mt-3 space-y-2">
             {#each group.events as event}<button
-                class="flex w-full items-start gap-3 rounded-md bg-slate-50 p-3 text-left"
+                class="flex w-full items-start gap-3 rounded-md bg-elevated p-3 text-left"
                 on:click={() => openDetail(event)}
-                ><span class="mt-1 h-2 w-2 rounded-full bg-fresh"></span><span
+                ><span class="mt-1 h-2 w-2 rounded-full bg-primary"></span><span
                   ><span class="font-semibold">{event.summary}</span><span
                     class="block text-xs text-muted"
                     >{dateTime(event.created_at)} · {titleCase(
@@ -392,13 +390,13 @@
       </div>
       <div class="grid gap-3 md:grid-cols-2">
         <pre
-          class="max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(
+          class="max-h-96 overflow-auto rounded-lg bg-canvas p-4 text-xs text-body">{JSON.stringify(
             detail.before_state ?? {},
             null,
             2
           )}</pre>
         <pre
-          class="max-h-96 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(
+          class="max-h-96 overflow-auto rounded-lg bg-canvas p-4 text-xs text-body">{JSON.stringify(
             detail.after_state ?? detail.metadata ?? {},
             null,
             2

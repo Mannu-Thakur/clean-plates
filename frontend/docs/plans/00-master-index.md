@@ -10,14 +10,14 @@
 
 ## Phase Map
 
-| Phase | Plan File | Scope | Pages |
-|-------|-----------|-------|-------|
-| **P1** | [01-foundation-design-system.md](./01-foundation-design-system.md) | Design system, tokens, layout shell, nav, auth | Login |
-| **P2** | [02-dashboard-and-monitoring.md](./02-dashboard-and-monitoring.md) | Overview dashboard + Live monitoring (WebSocket) | Pages 2, 3 |
-| **P3** | [03-analytics-and-students.md](./03-analytics-and-students.md) | Full analytics suite, student list, student intelligence | Pages 4, 5, 6 |
-| **P4** | [04-warnings-and-rules.md](./04-warnings-and-rules.md) | Warnings/penalties, Rule Engine Builder | Pages 7, 8 |
-| **P5** | [05-notifications-reports-devices.md](./05-notifications-reports-devices.md) | Notification centre, Reports, Devices | Pages 9, 10, 11 |
-| **P6** | [06-config-settings-audit.md](./06-config-settings-audit.md) | Configuration, Settings, Audit log | Pages 12, 13, 14 |
+| Phase  | Plan File                                                                    | Scope                                                    | Pages            |
+| ------ | ---------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------- |
+| **P1** | [01-foundation-design-system.md](./01-foundation-design-system.md)           | Design system, tokens, layout shell, nav, auth           | Login            |
+| **P2** | [02-dashboard-and-monitoring.md](./02-dashboard-and-monitoring.md)           | Overview dashboard + Live monitoring (WebSocket)         | Pages 2, 3       |
+| **P3** | [03-analytics-and-students.md](./03-analytics-and-students.md)               | Full analytics suite, student list, student intelligence | Pages 4, 5, 6    |
+| **P4** | [04-warnings-and-rules.md](./04-warnings-and-rules.md)                       | Warnings/penalties, Rule Engine Builder                  | Pages 7, 8       |
+| **P5** | [05-notifications-reports-devices.md](./05-notifications-reports-devices.md) | Notification centre, Reports, Devices                    | Pages 9, 10, 11  |
+| **P6** | [06-config-settings-audit.md](./06-config-settings-audit.md)                 | Configuration, Settings, Audit log                       | Pages 12, 13, 14 |
 
 ---
 
@@ -38,55 +38,55 @@ Each phase depends on all prior phases' shared components. No phase may start be
 
 ## Shared Component Registry (defined in P1, reused by all)
 
-| Component | File | Used In |
-|-----------|------|---------|
-| `Button` | `ui/Button.svelte` | Everywhere |
-| `Card` | `ui/Card.svelte` | Everywhere |
-| `StatCard` | `ui/StatCard.svelte` | P2, P3, P4, P5 |
-| `StatusBadge` | `ui/StatusBadge.svelte` | Everywhere |
-| `Modal` | `ui/Modal.svelte` | P2, P3, P4, P5, P6 |
-| `DataTable` | `ui/DataTable.svelte` | P3, P4, P5, P6 |
-| `FilterBar` | `ui/FilterBar.svelte` | P3, P4, P5, P6 |
-| `Pagination` | `ui/Pagination.svelte` | P3, P4, P5, P6 |
-| `EmptyState` | `ui/EmptyState.svelte` | Everywhere |
-| `SkeletonRow` | `ui/SkeletonRow.svelte` | Everywhere |
-| `ConfirmDialog` | `ui/ConfirmDialog.svelte` | P4, P5, P6 |
-| `ToastHost` | `ui/ToastHost.svelte` | Root layout |
-| `ChartCard` | `charts/ChartCard.svelte` | P2, P3 |
-| `Gauge` | `charts/Gauge.svelte` | P2, P3 |
-| `DashboardShell` | `layout/DashboardShell.svelte` | All dashboard pages |
-| `PageHeader` | `layout/PageHeader.svelte` | All dashboard pages |
-| `Tabs` | `ui/Tabs.svelte` | P3, P4, P5, P6 |
-| `SearchInput` | `ui/SearchInput.svelte` | P3, P4, P5, P6 |
-| `Toggle` | `ui/Toggle.svelte` | P4, P6 |
-| `FormField` | `ui/FormField.svelte` | P1, P4, P6 |
-| `DateRangePicker` | `ui/DateRangePicker.svelte` | P3, P4, P5, P6 |
-| `SelectField` | `ui/SelectField.svelte` | P3, P4, P5, P6 |
-| `FileUpload` | `ui/FileUpload.svelte` | P3, P6 |
+| Component         | File                           | Used In             |
+| ----------------- | ------------------------------ | ------------------- |
+| `Button`          | `ui/Button.svelte`             | Everywhere          |
+| `Card`            | `ui/Card.svelte`               | Everywhere          |
+| `StatCard`        | `ui/StatCard.svelte`           | P2, P3, P4, P5      |
+| `StatusBadge`     | `ui/StatusBadge.svelte`        | Everywhere          |
+| `Modal`           | `ui/Modal.svelte`              | P2, P3, P4, P5, P6  |
+| `DataTable`       | `ui/DataTable.svelte`          | P3, P4, P5, P6      |
+| `FilterBar`       | `ui/FilterBar.svelte`          | P3, P4, P5, P6      |
+| `Pagination`      | `ui/Pagination.svelte`         | P3, P4, P5, P6      |
+| `EmptyState`      | `ui/EmptyState.svelte`         | Everywhere          |
+| `SkeletonRow`     | `ui/SkeletonRow.svelte`        | Everywhere          |
+| `ConfirmDialog`   | `ui/ConfirmDialog.svelte`      | P4, P5, P6          |
+| `ToastHost`       | `ui/ToastHost.svelte`          | Root layout         |
+| `ChartCard`       | `charts/ChartCard.svelte`      | P2, P3              |
+| `Gauge`           | `charts/Gauge.svelte`          | P2, P3              |
+| `DashboardShell`  | `layout/DashboardShell.svelte` | All dashboard pages |
+| `PageHeader`      | `layout/PageHeader.svelte`     | All dashboard pages |
+| `Tabs`            | `ui/Tabs.svelte`               | P3, P4, P5, P6      |
+| `SearchInput`     | `ui/SearchInput.svelte`        | P3, P4, P5, P6      |
+| `Toggle`          | `ui/Toggle.svelte`             | P4, P6              |
+| `FormField`       | `ui/FormField.svelte`          | P1, P4, P6          |
+| `DateRangePicker` | `ui/DateRangePicker.svelte`    | P3, P4, P5, P6      |
+| `SelectField`     | `ui/SelectField.svelte`        | P3, P4, P5, P6      |
+| `FileUpload`      | `ui/FileUpload.svelte`         | P3, P6              |
 
 ---
 
 ## API Surface Summary
 
-| Domain | Key Endpoints | Phase |
-|--------|---------------|-------|
-| Auth | `/auth/login`, `/auth/me`, `/auth/refresh`, `/auth/logout` | P1 |
-| Analytics | `/analytics/overview`, `/analytics/trends`, `/analytics/peaks`, `/analytics/meal-distribution`, `/analytics/food-waste-distribution`, `/analytics/sustainability-scores`, `/analytics/branch-comparison` | P2, P3 |
-| Monitoring | `/monitoring/current-session`, `/monitoring/recent-entries`, `/monitoring/device-statuses` | P2 |
-| WS | `WS /ws/dashboard`, `WS /ws/monitoring` | P2 |
-| Students | `/students`, `/students/{id}`, `/students/{id}/stats`, `/students/{id}/timeline`, `/students/{id}/food-breakdown`, `/students/{id}/warnings`, `/students/import-csv`, `/students/export` | P3 |
-| Waste | `/waste/entries`, `/waste/entries/{id}` | P3, P2 |
-| Warnings | `/warnings`, `/warnings/{id}`, `/warnings/export`, `/penalties`, `/escalations` | P4 |
-| Rules | `/rules`, `/rules/{id}`, `/rules/{id}/test`, `/rules/{id}/simulate`, `/rules/{id}/executions`, `/rules/chains`, `/rules/metadata/*` | P4 |
-| Notifications | `/notifications`, `/notifications/{id}`, `/notifications/mark-all-read`, `/notifications/preferences` | P5 |
-| Reports | `/reports`, `/reports/generate`, `/reports/{id}`, `/reports/{id}/download`, `/reports/schedules` | P5 |
-| Devices | `/devices`, `/devices/{id}`, `/devices/{id}/health`, `/devices/{id}/history` | P5 |
-| Config | `/config/{section}`, `/config/institution`, `/config/thresholds`, `/config/meals`, `/config/branches` | P6 |
-| Settings | `/settings/users`, `/settings/security`, `/settings/backups`, `/settings/maintenance`, `/settings/logo` | P6 |
-| Audit | `/audit`, `/audit/{id}`, `/audit/stats` | P6 |
-| Filter Presets | `/filter-presets` | P3 |
-| Roles | `/roles` | P6 |
-| Templates | `/templates` | P6 |
+| Domain         | Key Endpoints                                                                                                                                                                                            | Phase  |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Auth           | `/auth/login`, `/auth/me`, `/auth/refresh`, `/auth/logout`                                                                                                                                               | P1     |
+| Analytics      | `/analytics/overview`, `/analytics/trends`, `/analytics/peaks`, `/analytics/meal-distribution`, `/analytics/food-waste-distribution`, `/analytics/sustainability-scores`, `/analytics/branch-comparison` | P2, P3 |
+| Monitoring     | `/monitoring/current-session`, `/monitoring/recent-entries`, `/monitoring/device-statuses`                                                                                                               | P2     |
+| WS             | `WS /ws/dashboard`, `WS /ws/monitoring`                                                                                                                                                                  | P2     |
+| Students       | `/students`, `/students/{id}`, `/students/{id}/stats`, `/students/{id}/timeline`, `/students/{id}/food-breakdown`, `/students/{id}/warnings`, `/students/import-csv`, `/students/export`                 | P3     |
+| Waste          | `/waste/entries`, `/waste/entries/{id}`                                                                                                                                                                  | P3, P2 |
+| Warnings       | `/warnings`, `/warnings/{id}`, `/warnings/export`, `/penalties`, `/escalations`                                                                                                                          | P4     |
+| Rules          | `/rules`, `/rules/{id}`, `/rules/{id}/test`, `/rules/{id}/simulate`, `/rules/{id}/executions`, `/rules/chains`, `/rules/metadata/*`                                                                      | P4     |
+| Notifications  | `/notifications`, `/notifications/{id}`, `/notifications/mark-all-read`, `/notifications/preferences`                                                                                                    | P5     |
+| Reports        | `/reports`, `/reports/generate`, `/reports/{id}`, `/reports/{id}/download`, `/reports/schedules`                                                                                                         | P5     |
+| Devices        | `/devices`, `/devices/{id}`, `/devices/{id}/health`, `/devices/{id}/history`                                                                                                                             | P5     |
+| Config         | `/config/{section}`, `/config/institution`, `/config/thresholds`, `/config/meals`, `/config/branches`                                                                                                    | P6     |
+| Settings       | `/settings/users`, `/settings/security`, `/settings/backups`, `/settings/maintenance`, `/settings/logo`                                                                                                  | P6     |
+| Audit          | `/audit`, `/audit/{id}`, `/audit/stats`                                                                                                                                                                  | P6     |
+| Filter Presets | `/filter-presets`                                                                                                                                                                                        | P3     |
+| Roles          | `/roles`                                                                                                                                                                                                 | P6     |
+| Templates      | `/templates`                                                                                                                                                                                             | P6     |
 
 ---
 

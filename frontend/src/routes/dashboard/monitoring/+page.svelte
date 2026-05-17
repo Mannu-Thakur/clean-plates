@@ -214,14 +214,14 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Live monitoring</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Waste entries, devices, and alerts
     </h2>
   </div>
   <div class="flex flex-wrap items-center gap-2">
     <StatusBadge value={wsStatus} />
     <select
-      class="field"
+      class="select-field"
       bind:value={mealFilter}
       on:change={applyMealFilter}
       id="select-feed-meal-filter"
@@ -314,7 +314,7 @@
         : 'Newest waste entries first'}
     >
       {#if loading && entries.length === 0}
-        <div class="h-80 animate-pulse rounded-lg bg-slate-100"></div>
+        <div class="h-80 animate-pulse rounded-lg bg-elevated"></div>
       {:else if visibleEntries.length === 0}
         <EmptyState
           title="No entries in feed"
@@ -324,12 +324,12 @@
         <div class="max-h-[620px] space-y-3 overflow-auto pr-1">
           {#each visibleEntries as entry (entry.id)}
             <button
-              class="w-full rounded-lg border border-line bg-white p-3 text-left transition hover:border-fresh"
+              class="w-full rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary"
               on:click={() => openEntry(entry)}
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-ink">
+                  <p class="truncate text-sm font-semibold text-body">
                     {entry.student_name ?? entry.student_device_id}
                   </p>
                   <p class="mt-1 text-xs text-muted">
@@ -339,7 +339,7 @@
                 <StatusBadge value={entry.severity} compact />
               </div>
               <div class="mt-3 flex items-center justify-between gap-3 text-sm">
-                <span class="font-semibold text-ink"
+                <span class="font-semibold text-body"
                   >{grams(entry.weight_grams)}</span
                 >
                 <span class="truncate text-muted"
@@ -374,10 +374,10 @@
         {:else}
           <div class="space-y-3">
             {#each alerts as alert, index}
-              <div class="rounded-lg border border-line bg-slate-50 p-3">
+              <div class="rounded-lg border border-border bg-elevated p-3">
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
-                    <p class="truncate text-sm font-semibold text-ink">
+                    <p class="truncate text-sm font-semibold text-body">
                       {alert.subject ??
                         titleCase(alert.alert_type ?? alert.type ?? 'alert')}
                     </p>
@@ -414,13 +414,13 @@
         <div class="grid gap-3">
           {#each devices as device (device.id)}
             <button
-              class="rounded-lg border border-line bg-white p-3 text-left transition hover:border-fresh"
+              class="rounded-lg border border-border bg-card p-3 text-left transition hover:border-primary"
               on:click={() => openDevice(device)}
               id={`btn-device-detail-${device.id}`}
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-semibold text-ink">
+                  <p class="truncate text-sm font-semibold text-body">
                     {device.edge_node_name}
                   </p>
                   <p class="truncate text-xs text-muted">{device.mess_name}</p>
@@ -506,13 +506,13 @@
   {#if selectedEntry}
     <div class="space-y-4 text-sm">
       <div class="grid grid-cols-2 gap-3">
-        <div class="rounded-md bg-slate-50 p-3">
+        <div class="rounded-md bg-elevated p-3">
           <span class="label">Student</span>
           <p class="mt-1 font-semibold">
             {selectedEntry.student_name ?? selectedEntry.student_device_id}
           </p>
         </div>
-        <div class="rounded-md bg-slate-50 p-3">
+        <div class="rounded-md bg-elevated p-3">
           <span class="label">Weight</span>
           <p class="mt-1 font-semibold">{grams(selectedEntry.weight_grams)}</p>
         </div>

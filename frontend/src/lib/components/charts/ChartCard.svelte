@@ -24,16 +24,16 @@
       data: {
         labels,
         datasets: datasets.map((dataset, i) => ({
-          borderColor:     CHART_COLORS.series[i % CHART_COLORS.series.length],
+          borderColor: CHART_COLORS.series[i % CHART_COLORS.series.length],
           backgroundColor:
             chartType === 'doughnut' || chartType === 'pie'
               ? [...CHART_COLORS.series]
               : fillOf(CHART_COLORS.series[i % CHART_COLORS.series.length]),
-          tension:     0.35,
+          tension: 0.35,
           borderWidth: 2,
           pointRadius: 3,
-          ...dataset,
-        })),
+          ...dataset
+        }))
       },
       options: {
         responsive: true,
@@ -42,26 +42,26 @@
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { boxWidth: 10, usePointStyle: true, color: '#eaecef' },
-          },
+            labels: { boxWidth: 10, usePointStyle: true, color: '#eaecef' }
+          }
         },
         scales:
           chartType === 'doughnut' || chartType === 'pie'
             ? {}
             : {
                 x: {
-                  grid:  { display: false },
+                  grid: { display: false },
                   ticks: { color: '#707a8a' },
-                  border: { color: '#2b3139' },
+                  border: { color: '#2b3139' }
                 },
                 y: {
                   beginAtZero: true,
-                  grid:  { color: '#2b3139' },
+                  grid: { color: '#2b3139' },
                   ticks: { color: '#707a8a' },
-                  border: { color: '#2b3139' },
-                },
-              },
-      },
+                  border: { color: '#2b3139' }
+                }
+              }
+      }
     });
   }
 

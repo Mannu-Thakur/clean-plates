@@ -4,6 +4,7 @@
 **Depends on:** Phase 1 (all design tokens, shared components, auth shell)  
 **Required before:** Phase 3 (reuses StatCard, ChartCard, Gauge, WS patterns)  
 **Pages implemented:**
+
 - Page 02: `/dashboard` — Global Overview Dashboard
 - Page 03: `/dashboard/monitoring` — Live Monitoring Dashboard
 
@@ -12,6 +13,7 @@
 ## Context & Current State
 
 Both pages have existing implementations that work functionally but use the old light theme tokens. This phase:
+
 1. Migrates both pages to dark Binance theme (token swap)
 2. Completes any missing features per the page specs
 3. Adds the new `PageHeader.svelte` layout component
@@ -22,19 +24,20 @@ Both pages have existing implementations that work functionally but use the old 
 ## Page 02 — Global Overview Dashboard (`/dashboard`)
 
 ### Route: `src/routes/dashboard/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin, analytics_viewer  
 **API Endpoints Used:**
 
-| Call | Endpoint | Trigger |
-|------|----------|---------|
-| Overview KPIs | `GET /api/v1/analytics/overview?period={p}` | onMount, period change |
-| Weekly Trend | `GET /api/v1/analytics/trends?type=weekly&period={p}` | onMount, period change |
-| Monthly Comparison | `GET /api/v1/analytics/trends?type=monthly_comparison&period={p}` | onMount |
-| Meal Distribution | `GET /api/v1/analytics/meal-distribution?period={p}` | onMount |
-| Food Waste Ranking | `GET /api/v1/analytics/food-waste-distribution?period={p}&limit=10` | onMount |
-| Peak Times | `GET /api/v1/analytics/peaks?period={p}` | onMount |
-| Report Export | `POST /api/v1/reports/generate` | User action |
-| WS Dashboard | `WS /ws/dashboard` | onMount |
+| Call               | Endpoint                                                            | Trigger                |
+| ------------------ | ------------------------------------------------------------------- | ---------------------- |
+| Overview KPIs      | `GET /api/v1/analytics/overview?period={p}`                         | onMount, period change |
+| Weekly Trend       | `GET /api/v1/analytics/trends?type=weekly&period={p}`               | onMount, period change |
+| Monthly Comparison | `GET /api/v1/analytics/trends?type=monthly_comparison&period={p}`   | onMount                |
+| Meal Distribution  | `GET /api/v1/analytics/meal-distribution?period={p}`                | onMount                |
+| Food Waste Ranking | `GET /api/v1/analytics/food-waste-distribution?period={p}&limit=10` | onMount                |
+| Peak Times         | `GET /api/v1/analytics/peaks?period={p}`                            | onMount                |
+| Report Export      | `POST /api/v1/reports/generate`                                     | User action            |
+| WS Dashboard       | `WS /ws/dashboard`                                                  | onMount                |
 
 ### Layout
 
@@ -57,20 +60,21 @@ Both pages have existing implementations that work functionally but use the old 
 
 ### KPI Cards (10 total) — `StatCard.svelte`
 
-| # | Title | Field from API | Tone | Icon |
-|---|-------|----------------|------|------|
-| 1 | Waste Today | `total_waste_today_grams` → `grams()` | neutral | Scale |
-| 2 | Waste This Week | `total_waste_week_grams` | neutral | Calendar |
-| 3 | Waste This Month | `total_waste_month_grams` | neutral | TrendingDown |
-| 4 | Reduction % | `waste_reduction_pct` | good if ≥0, bad if <0 | TrendingDown |
-| 5 | Peak Time | `peak_waste_time` or computed | neutral | Clock |
-| 6 | Active Students | `total_active_students` | neutral | Users |
-| 7 | Under Warning | `students_under_warning` | warn (primary) | AlertTriangle |
-| 8 | Under Penalty | `students_under_penalty` | bad (down) | Ban |
-| 9 | Active Devices | `active_devices` / `offline_devices` | neutral | Cpu |
-| 10 | Alerts Today | `alerts_today` / `rule_violations_today` | hot (primary) | Bell |
+| #   | Title            | Field from API                           | Tone                  | Icon          |
+| --- | ---------------- | ---------------------------------------- | --------------------- | ------------- |
+| 1   | Waste Today      | `total_waste_today_grams` → `grams()`    | neutral               | Scale         |
+| 2   | Waste This Week  | `total_waste_week_grams`                 | neutral               | Calendar      |
+| 3   | Waste This Month | `total_waste_month_grams`                | neutral               | TrendingDown  |
+| 4   | Reduction %      | `waste_reduction_pct`                    | good if ≥0, bad if <0 | TrendingDown  |
+| 5   | Peak Time        | `peak_waste_time` or computed            | neutral               | Clock         |
+| 6   | Active Students  | `total_active_students`                  | neutral               | Users         |
+| 7   | Under Warning    | `students_under_warning`                 | warn (primary)        | AlertTriangle |
+| 8   | Under Penalty    | `students_under_penalty`                 | bad (down)            | Ban           |
+| 9   | Active Devices   | `active_devices` / `offline_devices`     | neutral               | Cpu           |
+| 10  | Alerts Today     | `alerts_today` / `rule_violations_today` | hot (primary)         | Bell          |
 
 **Tone mapping for dark theme:**
+
 - `good` → value label `text-up`
 - `bad` → value label `text-down`
 - `warn` → value label `text-primary` (yellow)
@@ -80,15 +84,17 @@ Both pages have existing implementations that work functionally but use the old 
 ### StatCard dark redesign
 
 The `StatCard.svelte` renders within `.card p-5`:
+
 - Icon in top-right: 40×40 `rounded-lg bg-elevated flex items-center justify-center text-muted`
 - Value: `text-3xl font-bold font-mono` (BinancePlex style numeric)
-- Title: `text-sm font-medium text-muted`  
+- Title: `text-sm font-medium text-muted`
 - Helper: `text-xs text-muted mt-0.5`
 - Trend indicator (optional): `badge-up` or `badge-down` with ▲▼ prefix
 
 ### Chart.js Dark Configuration
 
 All charts within `ChartCard.svelte` must use:
+
 - Background: `transparent` (card provides background)
 - Grid lines: `#2b3139`
 - Tick color: `#707a8a`
@@ -101,6 +107,7 @@ All charts within `ChartCard.svelte` must use:
 ### ChartCard.svelte Enhancement
 
 Add `expandable` prop:
+
 - Shows `btn-icon` Expand button in card header
 - On click: opens chart in a `Modal.svelte` at larger size
 - Chart re-renders at `height: 400px` inside modal
@@ -108,8 +115,9 @@ Add `expandable` prop:
 ### Period Selector
 
 Dropdown `select-field` with options:
+
 - `today` → "Today"
-- `7d` → "Last 7 days"  
+- `7d` → "Last 7 days"
 - `30d` → "Last 30 days"
 - `semester` → "This semester"
 
@@ -120,7 +128,11 @@ On change: re-fetch all API calls with new period. Show skeleton during load.
 ```typescript
 // In +page.svelte onMount:
 socket = new ReconnectingSocket('/dashboard', (msg) => {
-  if (['waste_entry', 'warning_issued', 'rule_executed', 'kpi_update'].includes(msg.type)) {
+  if (
+    ['waste_entry', 'warning_issued', 'rule_executed', 'kpi_update'].includes(
+      msg.type
+    )
+  ) {
     loadOverview(); // refetch all KPIs
   }
 });
@@ -133,6 +145,7 @@ socket.connect();
 ### Export Button
 
 `btn-secondary` "Export" with Download icon:
+
 - Calls `POST /api/v1/reports/generate` with `{ type: 'overview', format: 'pdf', filters: { period } }`
 - Shows `notify('Report generation queued', 'success')`
 - Does NOT download immediately (report is queued — user gets it via Reports page)
@@ -142,18 +155,19 @@ socket.connect();
 ## Page 03 — Live Monitoring Dashboard (`/dashboard/monitoring`)
 
 ### Route: `src/routes/dashboard/monitoring/+page.svelte`
+
 **Access:** All roles (staff_operator: limited — no acknowledge button shown)  
 **API Endpoints Used:**
 
-| Call | Endpoint | Trigger |
-|------|----------|---------|
-| Current Session | `GET /api/v1/monitoring/current-session` | onMount |
-| Recent Entries | `GET /api/v1/monitoring/recent-entries?limit=50` | onMount |
-| Device Statuses | `GET /api/v1/monitoring/device-statuses` | onMount + WS updates |
-| Acknowledge Alert | `POST /api/v1/monitoring/alerts/{id}/acknowledge` | User action |
-| Entry Detail | `GET /api/v1/waste/entries/{id}` | User clicks entry |
-| Device Health | `GET /api/v1/devices/{id}/health` | User clicks device |
-| WS Monitoring | `WS /ws/monitoring` | onMount |
+| Call              | Endpoint                                          | Trigger              |
+| ----------------- | ------------------------------------------------- | -------------------- |
+| Current Session   | `GET /api/v1/monitoring/current-session`          | onMount              |
+| Recent Entries    | `GET /api/v1/monitoring/recent-entries?limit=50`  | onMount              |
+| Device Statuses   | `GET /api/v1/monitoring/device-statuses`          | onMount + WS updates |
+| Acknowledge Alert | `POST /api/v1/monitoring/alerts/{id}/acknowledge` | User action          |
+| Entry Detail      | `GET /api/v1/waste/entries/{id}`                  | User clicks entry    |
+| Device Health     | `GET /api/v1/devices/{id}/health`                 | User clicks device   |
+| WS Monitoring     | `WS /ws/monitoring`                               | onMount              |
 
 ### Layout
 

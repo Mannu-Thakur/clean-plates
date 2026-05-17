@@ -316,7 +316,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Rule engine</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Automated waste policy enforcement
     </h2>
   </div>
@@ -362,7 +362,7 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
     <label
       ><span class="label">Type</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.type}
         id="select-rule-type"
         ><option value="">All</option><option>threshold</option><option
@@ -372,7 +372,7 @@
     >
     <label
       ><span class="label">Priority</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.priority}
         id="select-rule-priority"
         ><option value="">All</option><option>critical</option><option
@@ -382,7 +382,7 @@
     >
     <label
       ><span class="label">Status</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.status}
         id="select-rule-status"
         ><option value="">All</option><option value="active">Active</option
@@ -397,12 +397,12 @@
 
 <Card class="mt-5" title="Rule list">
   {#if error}<div
-      class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral"
+      class="rounded-md border border-down/30 bg-down/10 p-3 text-down"
     >
       {error}
     </div>
   {:else if loading}<div
-      class="h-96 animate-pulse rounded-lg bg-slate-100"
+      class="h-96 animate-pulse rounded-lg bg-elevated"
     ></div>
   {:else if rules.items.length === 0}<EmptyState
       title="No rules yet"
@@ -411,27 +411,24 @@
   {:else}
     <div class="overflow-auto">
       <table>
-        <thead class="table-head"
+        <thead class="bg-elevated"
           ><tr
-            ><th class="table-cell">Rule</th><th class="table-cell">Type</th><th
-              class="table-cell">Priority</th
-            ><th class="table-cell">Status</th><th class="table-cell"
-              >Executions</th
-            ><th class="table-cell">Updated</th><th class="table-cell"
-              >Actions</th
-            ></tr
+            ><th class="th">Rule</th><th class="th">Type</th><th class="th"
+              >Priority</th
+            ><th class="th">Status</th><th class="th">Executions</th><th
+              class="th">Updated</th
+            ><th class="th">Actions</th></tr
           ></thead
         ><tbody
           >{#each rules.items as rule}<tr
-              ><td class="table-cell"
+              ><td class="td"
                 ><p class="font-semibold">{rule.name}</p>
                 <p class="text-xs text-muted">
                   {rule.description ?? 'No description'}
                 </p></td
-              ><td class="table-cell">{titleCase(rule.type)}</td><td
-                class="table-cell"
+              ><td class="td">{titleCase(rule.type)}</td><td class="td"
                 ><StatusBadge value={rule.priority} compact /></td
-              ><td class="table-cell"
+              ><td class="td"
                 ><button
                   on:click={() => toggleRule(rule)}
                   id={`switch-rule-active-${rule.id}`}
@@ -440,9 +437,9 @@
                     compact
                   /></button
                 ></td
-              ><td class="table-cell">{number(rule.execution_count)}</td><td
-                class="table-cell">{dateTime(rule.updated_at)}</td
-              ><td class="table-cell"
+              ><td class="td">{number(rule.execution_count)}</td><td class="td"
+                >{dateTime(rule.updated_at)}</td
+              ><td class="td"
                 ><div class="flex flex-wrap gap-2">
                   <Button
                     size="sm"
@@ -487,11 +484,11 @@
 
 <div class="mt-5 flex gap-2">
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'executions' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'executions' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'executions')}>Execution log</button
   >
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'chains' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'chains' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'chains')}>Chains</button
   >
 </div>
@@ -510,25 +507,23 @@
     {:else if executions.items.length === 0}<EmptyState title="No executions" />
     {:else}<div class="overflow-auto">
         <table>
-          <thead class="table-head"
+          <thead class="bg-elevated"
             ><tr
-              ><th class="table-cell">Time</th><th class="table-cell">Event</th
-              ><th class="table-cell">Status</th><th class="table-cell"
-                >Actions</th
-              ></tr
+              ><th class="th">Time</th><th class="th">Event</th><th class="th"
+                >Status</th
+              ><th class="th">Actions</th></tr
             ></thead
           ><tbody
             >{#each executions.items as execution}<tr
-                ><td class="table-cell"
-                  >{dateTime(String(execution.executed_at))}</td
-                ><td class="table-cell"
+                ><td class="td">{dateTime(String(execution.executed_at))}</td
+                ><td class="td"
                   >{titleCase(String(execution.trigger_event_type))}</td
-                ><td class="table-cell"
+                ><td class="td"
                   ><StatusBadge
                     value={String(execution.result_status)}
                     compact
                   /></td
-                ><td class="table-cell"
+                ><td class="td"
                   ><code class="text-xs"
                     >{JSON.stringify(execution.executed_actions).slice(
                       0,
@@ -543,7 +538,7 @@
   {:else if chains.nodes.length === 0}<EmptyState title="No rule chains" />
   {:else}<div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
       {#each chains.nodes as node}<div
-          class="rounded-lg border border-line p-4"
+          class="rounded-lg border border-border p-4"
         >
           <p class="font-semibold">{node.name}</p>
           <p class="mt-1 text-xs text-muted">
@@ -564,20 +559,20 @@
   <form class="grid gap-4 lg:grid-cols-2" on:submit|preventDefault={saveRule}>
     <label
       ><span class="label">Name</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={builder.name}
         required
       /></label
     >
     <label
       ><span class="label">Description</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={builder.description}
       /></label
     >
     <label
       ><span class="label">Type</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={builder.type}
         ><option>threshold</option><option>frequency</option><option
           >trend</option
@@ -586,7 +581,7 @@
     >
     <label
       ><span class="label">Priority</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={builder.priority}
         ><option>critical</option><option>high</option><option>medium</option
         ><option>low</option></select
@@ -597,7 +592,7 @@
     >
     <label
       ><span class="label">Chain to rule</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={builder.chain_to_rule_id}
         ><option value="">None</option
         >{#each rules.items.filter((rule) => rule.id !== builder.id) as rule}<option
@@ -605,12 +600,12 @@
           >{/each}</select
       ></label
     >
-    <div class="rounded-lg border border-line p-4 lg:col-span-2">
+    <div class="rounded-lg border border-border p-4 lg:col-span-2">
       <p class="mb-3 font-semibold">IF</p>
       <div class="grid gap-3 md:grid-cols-3">
         <label
           ><span class="label">Field</span><select
-            class="field mt-2 w-full"
+            class="select-field mt-2 w-full"
             bind:value={builder.field}
             >{#each fields as field}<option value={field.field}
                 >{field.label}</option
@@ -619,7 +614,7 @@
         >
         <label
           ><span class="label">Operator</span><select
-            class="field mt-2 w-full"
+            class="select-field mt-2 w-full"
             bind:value={builder.operator}
             >{#each selectedField?.operators ?? ['gt', 'lt', 'eq'] as operator}<option
                 value={operator}>{operator}</option
@@ -629,24 +624,24 @@
         <label
           ><span class="label">Value</span
           >{#if selectedField?.enum_values}<select
-              class="field mt-2 w-full"
+              class="select-field mt-2 w-full"
               bind:value={builder.value}
               >{#each selectedField.enum_values as value}<option {value}
                   >{titleCase(value)}</option
                 >{/each}</select
             >{:else}<input
-              class="field mt-2 w-full"
+              class="input-field mt-2 w-full"
               bind:value={builder.value}
             />{/if}</label
         >
       </div>
     </div>
-    <div class="rounded-lg border border-line p-4 lg:col-span-2">
+    <div class="rounded-lg border border-border p-4 lg:col-span-2">
       <p class="mb-3 font-semibold">THEN</p>
       <div class="grid gap-3 md:grid-cols-4">
         <label
           ><span class="label">Action</span><select
-            class="field mt-2 w-full"
+            class="select-field mt-2 w-full"
             bind:value={builder.action_type}
             >{#each actions as action}<option value={action.type}
                 >{action.label}</option
@@ -655,7 +650,7 @@
         >
         <label
           ><span class="label">Warning level</span><select
-            class="field mt-2 w-full"
+            class="select-field mt-2 w-full"
             bind:value={builder.warning_level}
             ><option value="level_1">Level 1</option><option value="level_2"
               >Level 2</option
@@ -664,7 +659,7 @@
         >
         <label
           ><span class="label">Penalty points</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             type="number"
             min="1"
             max="100"
@@ -673,7 +668,7 @@
         >
         <label
           ><span class="label">Reason / body</span><input
-            class="field mt-2 w-full"
+            class="input-field mt-2 w-full"
             bind:value={builder.action_reason}
           /></label
         >
@@ -699,13 +694,13 @@
     <div class="grid gap-3 sm:grid-cols-2">
       <label
         ><span class="label">From</span><input
-          class="field mt-2 w-full"
+          class="input-field mt-2 w-full"
           type="date"
           bind:value={simDates.date_from}
         /></label
       ><label
         ><span class="label">To</span><input
-          class="field mt-2 w-full"
+          class="input-field mt-2 w-full"
           type="date"
           bind:value={simDates.date_to}
         /></label
@@ -716,7 +711,7 @@
     >
     {#if simulationResult}
       <pre
-        class="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs text-slate-100">{JSON.stringify(
+        class="max-h-80 overflow-auto rounded-lg bg-canvas p-4 text-xs text-body">{JSON.stringify(
           simulationResult,
           null,
           2

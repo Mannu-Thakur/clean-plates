@@ -4,6 +4,7 @@
 **Depends on:** All previous phases — this is the final feature phase  
 **Required before:** Nothing — final phase before QA/deploy  
 **Pages implemented:**
+
 - Page 12: `/dashboard/config` — System Configuration
 - Page 13: `/dashboard/settings` — Application Settings
 - Page 14: `/dashboard/audit` — Audit Log
@@ -13,6 +14,7 @@
 ## Page 12 — System Configuration (`/dashboard/config`)
 
 ### Route: `src/routes/dashboard/config/+page.svelte`
+
 **Access:** super_admin, institution_admin (mess_admin: read-only for some sections)
 
 ### Layout — Tabbed Sections
@@ -29,37 +31,40 @@
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| Get institution config | `GET /api/v1/config/institution` |
-| Update institution config | `PATCH /api/v1/config/institution` |
-| Get device config | `GET /api/v1/config/device` |
-| Update device config | `PATCH /api/v1/config/device` |
-| Get thresholds | `GET /api/v1/config/thresholds` |
-| Update thresholds | `PATCH /api/v1/config/thresholds` |
-| Get meal timings | `GET /api/v1/config/meals` |
-| Update meal timings | `PUT /api/v1/config/meals` |
-| Get system policies | `GET /api/v1/config/system` |
-| Update system policies | `PATCH /api/v1/config/system` |
-| Get branches | `GET /api/v1/config/branches` |
-| Update branches | `PUT /api/v1/config/branches` |
-| Reset section | `POST /api/v1/config/reset/{section}` |
+| Action                    | Endpoint                              |
+| ------------------------- | ------------------------------------- |
+| Get institution config    | `GET /api/v1/config/institution`      |
+| Update institution config | `PATCH /api/v1/config/institution`    |
+| Get device config         | `GET /api/v1/config/device`           |
+| Update device config      | `PATCH /api/v1/config/device`         |
+| Get thresholds            | `GET /api/v1/config/thresholds`       |
+| Update thresholds         | `PATCH /api/v1/config/thresholds`     |
+| Get meal timings          | `GET /api/v1/config/meals`            |
+| Update meal timings       | `PUT /api/v1/config/meals`            |
+| Get system policies       | `GET /api/v1/config/system`           |
+| Update system policies    | `PATCH /api/v1/config/system`         |
+| Get branches              | `GET /api/v1/config/branches`         |
+| Update branches           | `PUT /api/v1/config/branches`         |
+| Reset section             | `POST /api/v1/config/reset/{section}` |
 
 > **Note:** There is no `/api/v1/config/all` aggregate endpoint. Load all sections simultaneously using `Promise.all()` in the `+page.svelte` `onMount`:
+>
 > ```typescript
-> const [institution, thresholds, meals, system, device, branches] = await Promise.all([
->   api.get('/config/institution'),
->   api.get('/config/thresholds'),
->   api.get('/config/meals'),
->   api.get('/config/system'),
->   api.get('/config/device'),
->   api.get('/config/branches'),
-> ]);
+> const [institution, thresholds, meals, system, device, branches] =
+>   await Promise.all([
+>     api.get('/config/institution'),
+>     api.get('/config/thresholds'),
+>     api.get('/config/meals'),
+>     api.get('/config/system'),
+>     api.get('/config/device'),
+>     api.get('/config/branches')
+>   ]);
 > ```
 
 ### Tab 1: Institution
 
 **Fields:**
+
 - Institution Name: `input-field`
 - Institution Code: `input-field`
 - Timezone: `SelectField` (list of IANA timezones — preset common ones + search)
@@ -72,6 +77,7 @@
   - On upload success: preview updates immediately
 
 **Branches sub-section:**
+
 - List of branches as editable rows:
   - Each row: `[Branch Code input] [Branch Name input] [Delete ✕]`
   - "Add Branch" button → appends new empty row
@@ -80,6 +86,7 @@
 ### Tab 2: Waste Thresholds
 
 **Fields (from ThresholdSchema):**
+
 - Daily Waste Warning Level (g): `input-field type="number"` → `warning_threshold_grams`
 - Daily Waste Penalty Level (g): `input-field type="number"` → `penalty_threshold_grams`
 - Per-Meal Waste Limit (g): `input-field type="number"` → `per_meal_limit_grams`
@@ -88,6 +95,7 @@
 - Auto-Penalty Days (number of warnings before penalty): `input-field type="number"`
 
 **Preview strip below form:**
+
 - Visual scale showing threshold zones (green → yellow → orange → red)
 - Updates in real-time as user changes values
 
@@ -95,17 +103,20 @@
 
 **Fields (from MealScheduleSchema):**
 For each meal (Breakfast, Lunch, Dinner):
+
 - Start Time: `input type="time"`
 - End Time: `input type="time"`
 - Enabled: `Toggle`
 - Label (custom name): `input-field`
 
 **Schedule preview:**
+
 - Horizontal timeline for the day showing all 3 meal windows as colored bars
 
 ### Tab 4: System Policy
 
 **Fields (from SystemPolicySchema):**
+
 - Audit Retention Days: `input-field type="number"`
 - Max Upload Size (MB): `input-field type="number"`
 - Session Timeout (minutes): `input-field type="number"`
@@ -116,6 +127,7 @@ For each meal (Breakfast, Lunch, Dinner):
 ### Tab 5: Device Configuration
 
 **Fields (from DeviceConfigSchema):**
+
 - Device Offline Threshold (minutes): `input-field type="number"`
 - Heartbeat Interval (seconds): `input-field type="number"`
 - Auto-Restart on Failure: `Toggle`
@@ -125,6 +137,7 @@ For each meal (Breakfast, Lunch, Dinner):
 ### Tab 6: Appearance
 
 **Fields (from AppearanceConfigSchema):**
+
 - Institution Logo: (same as institution tab — shows current logo)
 - System Name (displayed in UI): `input-field` (e.g., "CleanPlates")
 - Footer Text: `textarea-field`
@@ -165,8 +178,8 @@ export interface ThresholdConfig {
 }
 export interface MealConfig {
   breakfast: { start: string; end: string; enabled: boolean; label: string };
-  lunch:     { start: string; end: string; enabled: boolean; label: string };
-  dinner:    { start: string; end: string; enabled: boolean; label: string };
+  lunch: { start: string; end: string; enabled: boolean; label: string };
+  dinner: { start: string; end: string; enabled: boolean; label: string };
 }
 export interface SystemPolicyConfig {
   audit_retention_days: number;
@@ -191,6 +204,7 @@ export interface DeviceConfig {
 ## Page 13 — Application Settings (`/dashboard/settings`)
 
 ### Route: `src/routes/dashboard/settings/+page.svelte`
+
 **Access:** super_admin only (most sections); institution_admin (limited)
 
 ### Layout — Tabbed
@@ -207,38 +221,39 @@ export interface DeviceConfig {
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| List users | `GET /api/v1/settings/users` |
-| Create user | `POST /api/v1/settings/users` |
-| Update user | `PATCH /api/v1/settings/users/{id}` |
-| Deactivate user | `POST /api/v1/settings/users/{id}/deactivate` |
-| Reset password | `POST /api/v1/settings/users/{id}/reset-password` |
-| Get security config | `GET /api/v1/settings/security` |
-| Update security | `PATCH /api/v1/settings/security` |
-| List roles | `GET /api/v1/roles` |
-| Update role | `PATCH /api/v1/roles/{id}` |
-| List backups | `GET /api/v1/settings/backups` |
-| Create backup | `POST /api/v1/settings/backups` |
-| Restore backup | `POST /api/v1/settings/backups/restore` (file upload, field: `backup_file`) |
-| Download backup | `GET /api/v1/settings/backups/{id}/download` |
-| Get appearance config | `GET /api/v1/settings/appearance` |
-| Update appearance | `PATCH /api/v1/settings/appearance` |
-| Upload logo | `POST /api/v1/settings/appearance/logo` |
-| Get email config | (via `GET /api/v1/settings/appearance` — or future endpoint) |
-| List templates | `GET /api/v1/templates` |
-| Get template | `GET /api/v1/templates/{id}` |
-| Update template | `PATCH /api/v1/templates/{id}` |
-| Preview template | `POST /api/v1/templates/{id}/preview` |
-| Clear cache | `POST /api/v1/settings/maintenance/clear-cache` |
-| Optimize DB | `POST /api/v1/settings/maintenance/optimize-db` |
-| System info | `GET /api/v1/settings/maintenance/system-info` |
+| Action                | Endpoint                                                                    |
+| --------------------- | --------------------------------------------------------------------------- |
+| List users            | `GET /api/v1/settings/users`                                                |
+| Create user           | `POST /api/v1/settings/users`                                               |
+| Update user           | `PATCH /api/v1/settings/users/{id}`                                         |
+| Deactivate user       | `POST /api/v1/settings/users/{id}/deactivate`                               |
+| Reset password        | `POST /api/v1/settings/users/{id}/reset-password`                           |
+| Get security config   | `GET /api/v1/settings/security`                                             |
+| Update security       | `PATCH /api/v1/settings/security`                                           |
+| List roles            | `GET /api/v1/roles`                                                         |
+| Update role           | `PATCH /api/v1/roles/{id}`                                                  |
+| List backups          | `GET /api/v1/settings/backups`                                              |
+| Create backup         | `POST /api/v1/settings/backups`                                             |
+| Restore backup        | `POST /api/v1/settings/backups/restore` (file upload, field: `backup_file`) |
+| Download backup       | `GET /api/v1/settings/backups/{id}/download`                                |
+| Get appearance config | `GET /api/v1/settings/appearance`                                           |
+| Update appearance     | `PATCH /api/v1/settings/appearance`                                         |
+| Upload logo           | `POST /api/v1/settings/appearance/logo`                                     |
+| Get email config      | (via `GET /api/v1/settings/appearance` — or future endpoint)                |
+| List templates        | `GET /api/v1/templates`                                                     |
+| Get template          | `GET /api/v1/templates/{id}`                                                |
+| Update template       | `PATCH /api/v1/templates/{id}`                                              |
+| Preview template      | `POST /api/v1/templates/{id}/preview`                                       |
+| Clear cache           | `POST /api/v1/settings/maintenance/clear-cache`                             |
+| Optimize DB           | `POST /api/v1/settings/maintenance/optimize-db`                             |
+| System info           | `GET /api/v1/settings/maintenance/system-info`                              |
 
 ### Tab 1: User Management
 
 **DataTable Columns:** Name, Email, Role, Status, Created, Last Login, Actions
 
 **Role Badge:**
+
 - `super_admin` → `badge-down` (red — most privileged)
 - `institution_admin` → `badge-primary`
 - `mess_admin` → `badge-info`
@@ -246,6 +261,7 @@ export interface DeviceConfig {
 - `staff_operator` → `badge-up`
 
 **Row Actions:**
+
 - ✏ Edit → opens edit modal (name, role, active status)
 - 🔑 Reset Password → `ConfirmDialog` → POST reset → shows temp password in success modal
 - 🚫 Deactivate → `ConfirmDialog` (cannot deactivate own account, cannot deactivate last super_admin) → `POST /api/v1/settings/users/{id}/deactivate`
@@ -253,6 +269,7 @@ export interface DeviceConfig {
 > **Note:** Users are **deactivated**, not permanently deleted. The backend has no DELETE endpoint for users.
 
 **Create User Modal:**
+
 ```
   Name: [input-field]
   Email: [input-field]
@@ -261,9 +278,11 @@ export interface DeviceConfig {
   Send Welcome Email: [Toggle]
   [Cancel]  [Create User]
 ```
+
 POST → success modal shows temp password (if not emailing)
 
 **Edit User Modal:**
+
 ```
   Name: [input-field]
   Email: [input-field] (read-only)
@@ -275,6 +294,7 @@ POST → success modal shows temp password (if not emailing)
 ### Tab 2: Security
 
 **Fields (from SecurityConfigSchema):**
+
 - Access Token Expiry (minutes): `input-field type="number"`
 - Refresh Token Expiry (days): `input-field type="number"`
 - Max Login Attempts: `input-field type="number"`
@@ -283,6 +303,7 @@ POST → success modal shows temp password (if not emailing)
 - Two-Factor Auth (future): `Toggle` (disabled, shows "Coming Soon" label)
 
 Note box: `card p-4 border-l-4 border-primary text-sm text-muted`
+
 > "Security settings take effect immediately. Existing sessions are not terminated by token expiry changes."
 
 ### Tab 3: Roles & Permissions
@@ -307,12 +328,14 @@ Note box: `card p-4 border-l-4 border-primary text-sm text-muted`
 ```
 
 **Create Backup:**
+
 - Button in section header
 - `ConfirmDialog`: "Create a full database backup now?"
 - POST → shows generating status
 - Polls backup status (like reports polling)
 
 **Restore Backup:**
+
 - `ConfirmDialog` with WARNING alert:
   > ⚠️ Restoring will overwrite ALL current data. The application will restart. This cannot be undone.
 - Requires typing "RESTORE" to confirm (text input check before enabling button)
@@ -322,6 +345,7 @@ Note box: `card p-4 border-l-4 border-primary text-sm text-muted`
 - **Important:** The server may restart during restore; the `fetch` may time out. Frontend must catch network errors and poll `GET /health` until the server responds again.
 
 **Backup Status Badge:**
+
 - `creating` → `badge-info` + spinner
 - `completed` → `badge-up`
 - `failed` → `badge-down`
@@ -330,6 +354,7 @@ Note box: `card p-4 border-l-4 border-primary text-sm text-muted`
 ### Tab 5: Email Configuration
 
 **Fields:**
+
 - SMTP Host: `input-field`
 - SMTP Port: `input-field type="number"`
 - Use TLS: `Toggle`
@@ -339,16 +364,19 @@ Note box: `card p-4 border-l-4 border-primary text-sm text-muted`
 - From Name: `input-field`
 
 **Test Email Section:**
+
 ```
   Send Test Email To: [input-field type="email"]
   [Send Test] → shows success/failure inline
 ```
 
 **Email Templates Sub-section:**
+
 - DataTable: templates list (warning, penalty, welcome, reset-password, daily-digest, weekly-report)
 - Edit template button → opens Template Editor Modal
 
 **Template Editor Modal:**
+
 ```
 ┌──────────────────────────────────────────┐
 │  Edit Template: Warning Email            │
@@ -367,6 +395,7 @@ Preview → `POST /api/v1/templates/{id}/preview` → shows rendered HTML in ifr
 ### Tab 6: Maintenance
 
 **System Info Card:**
+
 - App Version: `text-primary font-mono`
 - Python Version, FastAPI Version
 - DB Size: formatted bytes
@@ -378,17 +407,21 @@ Preview → `POST /api/v1/templates/{id}/preview` → shows rendered HTML in ifr
 Fetch from `GET /api/v1/settings/maintenance/system-info` on tab open.
 
 **Cache Management:**
+
 ```
   Redis Cache: [240 keys, 4.2 MB]  [Clear Cache]
 ```
+
 Clear Cache → `ConfirmDialog` → POST → `notify('Cache cleared', 'success')`
 
 **Maintenance Mode Toggle:**
+
 - `Toggle` → if enabled, shows maintenance message input
 - PATCH to config endpoint (or settings endpoint)
 - When enabled: shows red banner across top of all pages
 
 **Database Optimization:**
+
 - "Optimize Database" button → `POST /api/v1/settings/maintenance/optimize-db`
 - Shows result: before/after size, time taken
 
@@ -397,6 +430,7 @@ Clear Cache → `ConfirmDialog` → POST → `notify('Cache cleared', 'success')
 ## Page 14 — Audit Log (`/dashboard/audit`)
 
 ### Route: `src/routes/dashboard/audit/+page.svelte`
+
 **Access:** super_admin, institution_admin (read-only)
 
 ### Layout
@@ -416,35 +450,36 @@ Clear Cache → `ConfirmDialog` → POST → `notify('Cache cleared', 'success')
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
+| Action            | Endpoint                                                                                      |
+| ----------------- | --------------------------------------------------------------------------------------------- |
 | List audit events | `GET /api/v1/audit?page=&size=&action=&resource_type=&user_id=&start_date=&end_date=&search=` |
-| Get event | `GET /api/v1/audit/{id}` |
-| Audit stats | `GET /api/v1/audit/stats` |
-| Export audit | `GET /api/v1/audit/export?format=csv` → `api.download()` |
+| Get event         | `GET /api/v1/audit/{id}`                                                                      |
+| Audit stats       | `GET /api/v1/audit/stats`                                                                     |
+| Export audit      | `GET /api/v1/audit/export?format=csv` → `api.download()`                                      |
 
 ### Stat Row
 
-| Card | Value | Tone |
-|------|-------|------|
-| Total Events | count (all time) | neutral |
-| Today | count | neutral |
-| Failed Events | count | bad |
-| Unique Users | count | info |
+| Card          | Value            | Tone    |
+| ------------- | ---------------- | ------- |
+| Total Events  | count (all time) | neutral |
+| Today         | count            | neutral |
+| Failed Events | count            | bad     |
+| Unique Users  | count            | info    |
 
 ### DataTable Columns
 
-| Column | Field | Width | Sortable |
-|--------|-------|-------|----------|
-| Time | `created_at` (relative + abs on hover) | 150px | Yes |
-| User | `user_name` or "System" | 160px | No |
-| Action | `action` badge | 130px | Yes |
-| Resource | `resource_type` + `resource_id` | 180px | No |
-| IP Address | `ip_address` | 130px | No |
-| Status | `status` badge | 80px | Yes |
-| Changes | `before_state` → `after_state` (icon button) | 80px | No |
+| Column     | Field                                        | Width | Sortable |
+| ---------- | -------------------------------------------- | ----- | -------- |
+| Time       | `created_at` (relative + abs on hover)       | 150px | Yes      |
+| User       | `user_name` or "System"                      | 160px | No       |
+| Action     | `action` badge                               | 130px | Yes      |
+| Resource   | `resource_type` + `resource_id`              | 180px | No       |
+| IP Address | `ip_address`                                 | 130px | No       |
+| Status     | `status` badge                               | 80px  | Yes      |
+| Changes    | `before_state` → `after_state` (icon button) | 80px  | No       |
 
 **Action Badge Coloring:**
+
 - `CREATE`, `REGISTER` → `badge-up`
 - `UPDATE`, `PATCH` → `badge-info`
 - `DELETE`, `DECOMMISSION` → `badge-down`
@@ -453,6 +488,7 @@ Clear Cache → `ConfirmDialog` → POST → `notify('Cache cleared', 'success')
 - `GENERATE`, `EXPORT` → `badge-primary`
 
 **Status Badge:**
+
 - `success` → `badge-up`
 - `failed` → `badge-down`
 - `partial` → `badge-primary`
@@ -489,13 +525,13 @@ Audit Event Details:
   IP Address:  192.168.1.100
   User Agent:  Chrome/125 ...
   Status:      ✓ success
-  
+
   Request Data:
   [JSON]
-  
+
   Before State:
   [JSON]
-  
+
   After State:
   [JSON]
 ```
@@ -549,12 +585,14 @@ export interface AuditStats {
 ## Shared Stores for This Phase
 
 ### `src/lib/stores/config.ts`
+
 ```typescript
 // State: sections (each config section), loading, dirty (which sections have unsaved changes)
 // Actions: fetchSection(section), updateSection(section, data), resetSection(section), saveAll()
 ```
 
 ### `src/lib/stores/settings.ts`
+
 ```typescript
 // State: users[], roles[], backups[], templates[], systemInfo, securityConfig, emailConfig, loading
 // Actions: fetchUsers(), createUser(data), updateUser(id, data), deactivateUser(id), resetPassword(id),
@@ -565,6 +603,7 @@ export interface AuditStats {
 ```
 
 ### `src/lib/stores/audit.ts`
+
 ```typescript
 // State: events[], total, stats, loading, filters
 // Actions: fetchEvents(filters), fetchStats(), exportEvents(filters)
@@ -575,16 +614,19 @@ export interface AuditStats {
 ## Additional Global Features (completed in this phase)
 
 ### Global Notification Bell
+
 - In `DashboardShell.svelte`: Bell icon with unread count badge
 - Fetches unread on mount: `GET /api/v1/notifications?is_read=false&size=1` (just for count)
 - WS events of type `notification` increment count
 
 ### Global Maintenance Banner
+
 - In `DashboardShell.svelte`: checks config for maintenance mode
 - If enabled: yellow banner at top of page `bg-primary text-on-primary text-center py-2`
 - Text from maintenance_note config field
 
 ### 404 / Unauthorized Pages
+
 - `src/routes/+error.svelte`: generic error page for SvelteKit errors
 - 401 → shows "Please log in" with redirect to login
 - 403 → shows "Access denied — insufficient permissions"
@@ -595,6 +637,7 @@ export interface AuditStats {
 ## Verification Checklist
 
 **Config page:**
+
 - [ ] All 6 tabs load correct data from API
 - [ ] Institution: name, timezone, branches CRUD works
 - [ ] Logo upload works, preview updates
@@ -606,6 +649,7 @@ export interface AuditStats {
 - [ ] Save All button saves all dirty sections
 
 **Settings page:**
+
 - [ ] Users DataTable loads
 - [ ] Create user: all fields, temp password shown on success
 - [ ] Edit user: name, role, active toggle
@@ -620,6 +664,7 @@ export interface AuditStats {
 - [ ] Maintenance tab: system info loads, cache clear works
 
 **Audit page:**
+
 - [ ] Table loads with pagination
 - [ ] Stats cards show correct data
 - [ ] Action badges correctly colored by action type

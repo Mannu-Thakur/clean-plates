@@ -220,7 +220,9 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Warnings and penalties</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">Enforcement management</h2>
+    <h2 class="mt-1 text-2xl font-semibold text-body">
+      Enforcement management
+    </h2>
   </div>
   <div class="flex flex-wrap gap-2">
     <Button variant="secondary" on:click={loadWarnings}
@@ -270,7 +272,7 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
     <label
       ><span class="label">Status</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.status}
         id="select-warning-status"
         ><option value="">All</option><option>active</option><option
@@ -280,7 +282,7 @@
     >
     <label
       ><span class="label">Priority</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.level}
         id="select-warning-priority"
         ><option value="">All</option><option value="level_1">Level 1</option
@@ -291,14 +293,14 @@
     >
     <label
       ><span class="label">From</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="date"
         bind:value={filters.date_from}
       /></label
     >
     <label
       ><span class="label">To</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         type="date"
         bind:value={filters.date_to}
       /></label
@@ -311,17 +313,17 @@
 
 <div class="mt-5 flex flex-wrap gap-2">
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'warnings' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'warnings' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'warnings')}
     id="tab-active-warnings">Active Warnings</button
   >
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'escalations' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'escalations' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'escalations')}
     id="tab-escalations">Escalations</button
   >
   <button
-    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'penalties' ? 'bg-fresh text-white' : 'bg-white text-muted'}`}
+    class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === 'penalties' ? 'bg-primary text-ink' : 'bg-card text-muted'}`}
     on:click={() => (activeTab = 'penalties')}>Penalties</button
   >
 </div>
@@ -335,45 +337,44 @@
       : 'Penalties table'}
 >
   {#if error}
-    <div class="rounded-md border border-coral/30 bg-coral/10 p-3 text-coral">
+    <div class="rounded-md border border-down/30 bg-down/10 p-3 text-down">
       {error}
     </div>
   {:else if loading}
-    <div class="h-96 animate-pulse rounded-lg bg-slate-100"></div>
+    <div class="h-96 animate-pulse rounded-lg bg-elevated"></div>
   {:else if activeTab === 'warnings'}
     {#if warnings.items.length === 0}<EmptyState />{:else}
       <div class="overflow-auto">
         <table>
-          <thead class="table-head"
+          <thead class="bg-elevated"
             ><tr
-              ><th class="table-cell"></th><th class="table-cell">Student</th
-              ><th class="table-cell">Level</th><th class="table-cell"
-                >Reason</th
-              ><th class="table-cell">Status</th><th class="table-cell"
-                >Created</th
-              ><th class="table-cell">Actions</th></tr
+              ><th class="th"></th><th class="th">Student</th><th class="th"
+                >Level</th
+              ><th class="th">Reason</th><th class="th">Status</th><th
+                class="th">Created</th
+              ><th class="th">Actions</th></tr
             ></thead
           >
           <tbody
             >{#each warnings.items as warning}<tr
-                ><td class="table-cell"
+                ><td class="td"
                   ><input
                     type="checkbox"
                     checked={selected.has(warning.id)}
                     on:change={() => toggle(warning.id)}
                   /></td
-                ><td class="table-cell"
+                ><td class="td"
                   ><a
-                    class="font-semibold text-fresh"
+                    class="font-semibold text-primary"
                     href={`/dashboard/students/${warning.student_id}`}
                     >{warning.student_name ?? warning.student_id}</a
                   ></td
-                ><td class="table-cell">{titleCase(warning.level)}</td><td
-                  class="table-cell">{warning.reason}</td
-                ><td class="table-cell"
+                ><td class="td">{titleCase(warning.level)}</td><td class="td"
+                  >{warning.reason}</td
+                ><td class="td"
                   ><StatusBadge value={warning.status} compact /></td
-                ><td class="table-cell">{dateTime(warning.created_at)}</td><td
-                  class="table-cell"
+                ><td class="td">{dateTime(warning.created_at)}</td><td
+                  class="td"
                   ><div class="flex flex-wrap gap-2">
                     <Button
                       size="sm"
@@ -419,7 +420,7 @@
     {#if escalations.length === 0}<EmptyState title="No escalations" />{:else}
       <div class="space-y-3">
         {#each escalations as escalation}<div
-            class="rounded-lg border border-line p-4"
+            class="rounded-lg border border-border p-4"
           >
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div>
@@ -452,29 +453,26 @@
     />{:else}
     <div class="overflow-auto">
       <table>
-        <thead class="table-head"
+        <thead class="bg-elevated"
           ><tr
-            ><th class="table-cell">Student</th><th class="table-cell"
-              >Points</th
-            ><th class="table-cell">Reason</th><th class="table-cell">Status</th
-            ><th class="table-cell">Created</th><th class="table-cell"
+            ><th class="th">Student</th><th class="th">Points</th><th class="th"
+              >Reason</th
+            ><th class="th">Status</th><th class="th">Created</th><th class="th"
               >Actions</th
             ></tr
           ></thead
         ><tbody
           >{#each penalties.items as penalty}<tr
-              ><td class="table-cell"
+              ><td class="td"
                 ><a
-                  class="font-semibold text-fresh"
+                  class="font-semibold text-primary"
                   href={`/dashboard/students/${penalty.student_id}`}
                   >{penalty.student_name ?? penalty.student_id}</a
                 ></td
-              ><td class="table-cell">{number(penalty.points)}</td><td
-                class="table-cell">{penalty.reason}</td
-              ><td class="table-cell"
-                ><StatusBadge value={penalty.status} compact /></td
-              ><td class="table-cell">{dateTime(penalty.created_at)}</td><td
-                class="table-cell"
+              ><td class="td">{number(penalty.points)}</td><td class="td"
+                >{penalty.reason}</td
+              ><td class="td"><StatusBadge value={penalty.status} compact /></td
+              ><td class="td">{dateTime(penalty.created_at)}</td><td class="td"
                 ><Button
                   size="sm"
                   variant="secondary"

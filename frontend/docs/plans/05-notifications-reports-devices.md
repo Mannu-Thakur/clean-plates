@@ -4,6 +4,7 @@
 **Depends on:** Phase 1 (Modal, DataTable, FilterBar, FileUpload), Phase 3 (filter/pagination patterns), Phase 4 (ConfirmDialog)  
 **Required before:** Phase 6 (Modal and form patterns complete)  
 **Pages implemented:**
+
 - Page 09: `/dashboard/notifications` — Notification Centre
 - Page 10: `/dashboard/reports` — Reports & Scheduled Reports
 - Page 11: `/dashboard/devices` — Device Management
@@ -13,6 +14,7 @@
 ## Page 09 — Notification Centre (`/dashboard/notifications`)
 
 ### Route: `src/routes/dashboard/notifications/+page.svelte`
+
 **Access:** All roles (notifications scoped to their own role)
 
 ### Layout
@@ -32,20 +34,21 @@
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| List notifications | `GET /api/v1/notifications?page=&size=&type=&priority=&is_read=&start_date=&end_date=` |
-| Mark as read | `PATCH /api/v1/notifications/{id}` with `{is_read: true}` |
-| Mark all read | `POST /api/v1/notifications/mark-all-read` |
-| Delete notification | `DELETE /api/v1/notifications/{id}` |
-| Get preferences | `GET /api/v1/notifications/preferences` |
-| Update preferences | `PATCH /api/v1/notifications/preferences` |
-| Create notification | `POST /api/v1/notifications` (admin only) |
-| Schedule notification | `POST /api/v1/notifications/schedule` |
+| Action                | Endpoint                                                                               |
+| --------------------- | -------------------------------------------------------------------------------------- |
+| List notifications    | `GET /api/v1/notifications?page=&size=&type=&priority=&is_read=&start_date=&end_date=` |
+| Mark as read          | `PATCH /api/v1/notifications/{id}` with `{is_read: true}`                              |
+| Mark all read         | `POST /api/v1/notifications/mark-all-read`                                             |
+| Delete notification   | `DELETE /api/v1/notifications/{id}`                                                    |
+| Get preferences       | `GET /api/v1/notifications/preferences`                                                |
+| Update preferences    | `PATCH /api/v1/notifications/preferences`                                              |
+| Create notification   | `POST /api/v1/notifications` (admin only)                                              |
+| Schedule notification | `POST /api/v1/notifications/schedule`                                                  |
 
 ### Notification Card Design
 
 Each notification renders as a `.card p-4 mb-2` with:
+
 - Left accent bar (4px wide) colored by priority:
   - `critical` → `bg-down`
   - `high` → `bg-primary`
@@ -65,12 +68,12 @@ Each notification renders as a `.card p-4 mb-2` with:
 
 ### Stat Row
 
-| Card | Value | Tone |
-|------|-------|------|
-| Unread | count | primary |
-| Total Today | count | neutral |
-| Alerts (critical+high) | count | bad |
-| System Messages | count | info |
+| Card                   | Value | Tone    |
+| ---------------------- | ----- | ------- |
+| Unread                 | count | primary |
+| Total Today            | count | neutral |
+| Alerts (critical+high) | count | bad     |
+| System Messages        | count | info    |
 
 ### Preferences Modal
 
@@ -151,6 +154,7 @@ export interface NotificationPreferences {
 ## Page 10 — Reports (`/dashboard/reports`)
 
 ### Route: `src/routes/dashboard/reports/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin
 
 ### Layout
@@ -167,17 +171,17 @@ export interface NotificationPreferences {
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| List reports | `GET /api/v1/reports?page=&size=&type=&format=&status=&start_date=&end_date=` |
-| Generate report | `POST /api/v1/reports/generate` |
-| Get report | `GET /api/v1/reports/{id}` |
-| Download report | `GET /api/v1/reports/{id}/download` → `api.download()` |
-| Delete report | `DELETE /api/v1/reports/{id}` |
-| List schedules | `GET /api/v1/reports/schedules` |
-| Create schedule | `POST /api/v1/reports/schedules` |
-| Update schedule | `PATCH /api/v1/reports/schedules/{id}` |
-| Delete schedule | `DELETE /api/v1/reports/schedules/{id}` |
+| Action          | Endpoint                                                                      |
+| --------------- | ----------------------------------------------------------------------------- |
+| List reports    | `GET /api/v1/reports?page=&size=&type=&format=&status=&start_date=&end_date=` |
+| Generate report | `POST /api/v1/reports/generate`                                               |
+| Get report      | `GET /api/v1/reports/{id}`                                                    |
+| Download report | `GET /api/v1/reports/{id}/download` → `api.download()`                        |
+| Delete report   | `DELETE /api/v1/reports/{id}`                                                 |
+| List schedules  | `GET /api/v1/reports/schedules`                                               |
+| Create schedule | `POST /api/v1/reports/schedules`                                              |
+| Update schedule | `PATCH /api/v1/reports/schedules/{id}`                                        |
+| Delete schedule | `DELETE /api/v1/reports/schedules/{id}`                                       |
 
 ### Tab 1: Reports Library
 
@@ -185,30 +189,33 @@ export interface NotificationPreferences {
 
 **DataTable Columns:**
 
-| Column | Field | Sortable |
-|--------|-------|----------|
-| Name | `name` | No |
-| Type | `type` badge | Yes |
-| Format | `format` badge | No |
-| Status | `status` badge | Yes |
-| Generated By | `generated_by_name` | No |
-| Date Range | `period_start` – `period_end` | Yes |
-| Generated At | `generated_at` | Yes |
-| Size | file size | No |
-| Actions | — | No |
+| Column       | Field                         | Sortable |
+| ------------ | ----------------------------- | -------- |
+| Name         | `name`                        | No       |
+| Type         | `type` badge                  | Yes      |
+| Format       | `format` badge                | No       |
+| Status       | `status` badge                | Yes      |
+| Generated By | `generated_by_name`           | No       |
+| Date Range   | `period_start` – `period_end` | Yes      |
+| Generated At | `generated_at`                | Yes      |
+| Size         | file size                     | No       |
+| Actions      | —                             | No       |
 
 **Status Badge:**
+
 - `pending` → `badge-muted` with ⏳
 - `generating` → `badge-info` with spinner animation
 - `ready` → `badge-up` with ✓
 - `failed` → `badge-down` with ✕
 
 **Row Actions:**
+
 - ⬇ Download (only if status=ready) → `api.download('/reports/{id}/download', filename)`
 - 👁 Preview → `GET /api/v1/reports/{id}` → shows metadata in modal (NOT inline PDF rendering)
 - 🗑 Delete → `ConfirmDialog` then DELETE
 
 **Polling for generating reports:**
+
 - If any report has status=`generating`, poll `GET /api/v1/reports/{id}` every 5s
 - On status change to `ready`: update row, show `notify('Report ready!', 'success')` with download action in toast
 - Stop polling when all are ready/failed
@@ -235,6 +242,7 @@ export interface NotificationPreferences {
 ```
 
 Submit → `POST /api/v1/reports/generate`
+
 - Response: report object with status=`pending` or `generating`
 - Add to table immediately, start polling
 
@@ -243,6 +251,7 @@ Submit → `POST /api/v1/reports/generate`
 **DataTable Columns:** Name, Type, Format, Frequency, Next Run, Last Run, Created By, Actions
 
 **Frequency Badge:**
+
 - `daily` → `badge-info`
 - `weekly` → `badge-primary`
 - `monthly` → `badge-muted`
@@ -309,6 +318,7 @@ export interface ReportSchedule {
 ## Page 11 — Device Management (`/dashboard/devices`)
 
 ### Route: `src/routes/dashboard/devices/+page.svelte`
+
 **Access:** super_admin, institution_admin, mess_admin
 
 ### Layout
@@ -327,31 +337,32 @@ export interface ReportSchedule {
 
 ### API Calls
 
-| Action | Endpoint |
-|--------|----------|
-| List devices | `GET /api/v1/devices?page=&size=&status=&search=` |
-| Get device | `GET /api/v1/devices/{id}` |
-| Register device | `POST /api/v1/devices` |
-| Update device | `PATCH /api/v1/devices/{id}` |
-| Decommission | `DELETE /api/v1/devices/{id}` |
-| Device health | `GET /api/v1/devices/{id}/health` |
-| Device history | `GET /api/v1/devices/{id}/history?page=&size=` |
-| Restart service | `POST /api/v1/devices/{id}/restart` |
+| Action          | Endpoint                                          |
+| --------------- | ------------------------------------------------- |
+| List devices    | `GET /api/v1/devices?page=&size=&status=&search=` |
+| Get device      | `GET /api/v1/devices/{id}`                        |
+| Register device | `POST /api/v1/devices`                            |
+| Update device   | `PATCH /api/v1/devices/{id}`                      |
+| Decommission    | `DELETE /api/v1/devices/{id}`                     |
+| Device health   | `GET /api/v1/devices/{id}/health`                 |
+| Device history  | `GET /api/v1/devices/{id}/history?page=&size=`    |
+| Restart service | `POST /api/v1/devices/{id}/restart`               |
 
 ### Stat Row
 
-| Card | Value | Tone |
-|------|-------|------|
-| Online | count | good (up) |
-| Offline | count | bad (down) |
+| Card    | Value | Tone           |
+| ------- | ----- | -------------- |
+| Online  | count | good (up)      |
+| Offline | count | bad (down)     |
 | Warning | count | warn (primary) |
-| Total | count | neutral |
+| Total   | count | neutral        |
 
 ### Device Card View
 
 Default view: responsive grid (2–4 cols based on screen width)
 
 Each device card (`.card p-5`):
+
 ```
 ┌───────────────────────────────┐
 │  ● Online    [Edit] [⟳] [⋮]  │  ← status dot + action icons
@@ -371,6 +382,7 @@ Each device card (`.card p-5`):
 ```
 
 Status color:
+
 - `online` → `dot-up` + `badge-up`
 - `offline` → `dot-down` + `badge-down`
 - `warning` → `dot-warn` + `badge-primary`
@@ -382,17 +394,17 @@ Progress bars: `bg-elevated rounded-full overflow-hidden h-1.5`, fill `bg-primar
 
 ### DataTable View (columns)
 
-| Column | Field |
-|--------|-------|
-| Name | `name` |
-| Mess | `mess_name` |
-| Status | badge |
-| CPU% | progress bar |
-| RAM% | progress bar |
-| Temp | `temperature`°C |
-| IP | `ip_address` |
+| Column    | Field            |
+| --------- | ---------------- |
+| Name      | `name`           |
+| Mess      | `mess_name`      |
+| Status    | badge            |
+| CPU%      | progress bar     |
+| RAM%      | progress bar     |
+| Temp      | `temperature`°C  |
+| IP        | `ip_address`     |
 | Last Seen | `last_heartbeat` |
-| Actions | — |
+| Actions   | —                |
 
 ### Device Health Modal
 
@@ -438,6 +450,7 @@ Charts: `ChartCard.svelte` with `type='line'`, small height (120px), time axis
 
 On submit → `POST /api/v1/devices` → response includes `api_key`
 Show success modal with generated API key:
+
 ```
 Device registered!
 API Key (copy this now — shown once):
@@ -464,7 +477,7 @@ export interface Device {
   mess_name?: string;
   status: 'online' | 'offline' | 'warning' | 'decommissioned';
   ip_address?: string;
-  api_key?: string;         // shown only at creation
+  api_key?: string; // shown only at creation
   api_key_preview?: string; // last 4 chars
   cpu_percent?: number;
   ram_percent?: number;
@@ -504,6 +517,7 @@ export interface DeviceHealthEvent {
 ## Shared Stores for This Phase
 
 ### `src/lib/stores/notifications.ts`
+
 ```typescript
 // State: notifications[], unreadCount, preferences, loading
 // Actions: fetchNotifications(filters), markRead(id), markAllRead(),
@@ -512,6 +526,7 @@ export interface DeviceHealthEvent {
 ```
 
 ### `src/lib/stores/reports.ts`
+
 ```typescript
 // State: reports[], total, schedules, loading, pollingIds (Set<string>)
 // Actions: fetchReports(filters), generateReport(data), downloadReport(id, name),
@@ -520,6 +535,7 @@ export interface DeviceHealthEvent {
 ```
 
 ### `src/lib/stores/devices.ts`
+
 ```typescript
 // State: devices[], total, loading, viewMode ('card' | 'table')
 // Actions: fetchDevices(filters), registerDevice(data), updateDevice(id, data),
@@ -531,6 +547,7 @@ export interface DeviceHealthEvent {
 ## Verification Checklist
 
 **Notifications:**
+
 - [ ] Notifications load with pagination
 - [ ] Unread count shown in global header
 - [ ] Mark as read works (card dims)
@@ -541,6 +558,7 @@ export interface DeviceHealthEvent {
 - [ ] Date/type/priority filters work
 
 **Reports:**
+
 - [ ] Reports table loads
 - [ ] Status badges correct
 - [ ] Generate report modal: all fields, submit queues report
@@ -550,6 +568,7 @@ export interface DeviceHealthEvent {
 - [ ] Scheduled reports tab: list, create, edit, delete schedules
 
 **Devices:**
+
 - [ ] Device cards render with status dots and progress bars
 - [ ] Table view toggle works
 - [ ] Health modal shows CPU/RAM/temp charts

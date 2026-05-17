@@ -176,7 +176,7 @@
 <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
   <div>
     <p class="label">Deep analytics</p>
-    <h2 class="mt-1 text-2xl font-semibold text-ink">
+    <h2 class="mt-1 text-2xl font-semibold text-body">
       Student, food, and meal trends
     </h2>
   </div>
@@ -203,7 +203,7 @@
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
     <label
       ><span class="label">Period</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.period}
         ><option value="today">Today</option><option value="7d">7d</option
         ><option value="30d">30d</option><option value="semester"
@@ -213,14 +213,14 @@
     >
     <label
       ><span class="label">Branch</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.branch}
         placeholder="CSE"
       /></label
     >
     <label
       ><span class="label">Year</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.year}
         ><option value="">All</option><option>1</option><option>2</option
         ><option>3</option><option>4</option></select
@@ -228,14 +228,14 @@
     >
     <label
       ><span class="label">Hostel</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.hostel}
         placeholder="A Block"
       /></label
     >
     <label
       ><span class="label">Meal</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.meal_type}
         ><option value="">All</option><option value="breakfast"
           >Breakfast</option
@@ -246,14 +246,14 @@
     >
     <label
       ><span class="label">Food</span><input
-        class="field mt-2 w-full"
+        class="input-field mt-2 w-full"
         bind:value={filters.food}
         placeholder="Rice"
       /></label
     >
     <label
       ><span class="label">Status</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={filters.status}
         ><option value="">All</option><option>green</option><option
           >yellow</option
@@ -262,7 +262,7 @@
     >
     <label
       ><span class="label">Preset</span><select
-        class="field mt-2 w-full"
+        class="select-field mt-2 w-full"
         bind:value={selectedPreset}
         on:change={applyPreset}
         id="select-preset"
@@ -277,7 +277,7 @@
 <div class="mt-5 flex flex-wrap gap-2">
   {#each tabs as tab}
     <button
-      class={`rounded-md px-4 py-2 text-sm font-semibold transition ${activeTab === tab ? 'bg-fresh text-white' : 'bg-white text-muted hover:text-ink'}`}
+      class={`rounded-md px-4 py-2 text-sm font-semibold transition ${activeTab === tab ? 'bg-primary text-ink' : 'bg-card text-muted hover:text-body'}`}
       on:click={() => (activeTab = tab)}
       id={`tab-${tab}`}
     >
@@ -305,8 +305,8 @@
   </div>
 {:else if loading}
   <div class="mt-5 grid gap-5 xl:grid-cols-2">
-    <div class="surface h-80 animate-pulse bg-slate-100"></div>
-    <div class="surface h-80 animate-pulse bg-slate-100"></div>
+    <div class="card h-80 animate-pulse bg-elevated"></div>
+    <div class="card h-80 animate-pulse bg-elevated"></div>
   </div>
 {:else if activeTab === 'student'}
   <div class="mt-5 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
@@ -319,32 +319,27 @@
       {:else}
         <div class="overflow-auto">
           <table>
-            <thead class="table-head"
+            <thead class="bg-elevated"
               ><tr
-                ><th class="table-cell">Rank</th><th class="table-cell"
-                  >Student</th
-                ><th class="table-cell">Avg</th><th class="table-cell">Total</th
-                ><th class="table-cell">Status</th></tr
+                ><th class="th">Rank</th><th class="th">Student</th><th
+                  class="th">Avg</th
+                ><th class="th">Total</th><th class="th">Status</th></tr
               ></thead
             >
             <tbody>
               {#each topContributors as row}
                 <tr>
-                  <td class="table-cell">{number(row.rank as number)}</td>
-                  <td class="table-cell"
+                  <td class="td">{number(row.rank as number)}</td>
+                  <td class="td"
                     ><a
-                      class="font-semibold text-fresh"
+                      class="font-semibold text-primary"
                       href={`/dashboard/students/${row.student_id}`}
                       >{row.name ?? row.device_id}</a
                     ></td
                   >
-                  <td class="table-cell"
-                    >{grams(row.avg_waste_grams as number)}</td
-                  >
-                  <td class="table-cell"
-                    >{grams(row.total_waste_grams as number)}</td
-                  >
-                  <td class="table-cell"
+                  <td class="td">{grams(row.avg_waste_grams as number)}</td>
+                  <td class="td">{grams(row.total_waste_grams as number)}</td>
+                  <td class="td"
                     ><StatusBadge value={String(row.status)} compact /></td
                   >
                 </tr>
@@ -383,17 +378,17 @@
     />
     <Card title="Peak Waste Signals">
       <div class="grid gap-3 sm:grid-cols-3">
-        <div class="rounded-lg bg-slate-50 p-4">
+        <div class="rounded-lg bg-elevated p-4">
           <span class="label">Hour</span>
           <p class="mt-2 text-xl font-semibold">{peaks.peak_hour ?? 'None'}</p>
         </div>
-        <div class="rounded-lg bg-slate-50 p-4">
+        <div class="rounded-lg bg-elevated p-4">
           <span class="label">Meal</span>
           <p class="mt-2 text-xl font-semibold">
             {titleCase(String(peaks.peak_meal ?? 'None'))}
           </p>
         </div>
-        <div class="rounded-lg bg-slate-50 p-4">
+        <div class="rounded-lg bg-elevated p-4">
           <span class="label">Weekday</span>
           <p class="mt-2 text-xl font-semibold">
             {String(peaks.peak_weekday ?? 'None')}
@@ -419,14 +414,14 @@
       {#if foodRanking.length === 0}<EmptyState />{:else}
         <div class="space-y-3">
           {#each foodRanking as row}
-            <div class="rounded-lg border border-line p-3">
+            <div class="rounded-lg border border-border p-3">
               <div class="flex justify-between gap-3">
                 <p class="font-semibold">{row.food_name}</p>
                 <span>{grams(row.total_grams as number)}</span>
               </div>
-              <div class="mt-2 h-2 rounded-full bg-slate-100">
+              <div class="mt-2 h-2 rounded-full bg-elevated">
                 <div
-                  class="h-2 rounded-full bg-fresh"
+                  class="h-2 rounded-full bg-primary"
                   style={`width:${Math.min(100, Number(row.percentage ?? 0))}%`}
                 ></div>
               </div>
@@ -457,7 +452,7 @@
         <div class="grid gap-3">
           {#each mealDistribution as row}
             <div
-              class="flex items-center justify-between rounded-lg border border-line p-4"
+              class="flex items-center justify-between rounded-lg border border-border p-4"
             >
               <div>
                 <p class="font-semibold">{titleCase(String(row.meal_type))}</p>

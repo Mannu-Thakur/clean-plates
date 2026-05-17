@@ -11,6 +11,7 @@
 ## Context & Current State
 
 The frontend scaffold already exists with:
+
 - ✅ SvelteKit 2, Svelte 5, TypeScript, TailwindCSS 3, Chart.js, Lucide icons, Inter font
 - ✅ `src/lib/api/client.ts` — full fetch wrapper with JWT attach + auto-refresh
 - ✅ `src/lib/api/ws.ts` — `ReconnectingSocket` with exponential backoff
@@ -35,24 +36,24 @@ The frontend scaffold already exists with:
 
 ## Design Token Reference (Binance-Reference.md)
 
-| Token Name | Hex | Usage |
-|------------|-----|-------|
-| `canvas` | `#0b0e11` | Page background (flat, NO gradient) |
-| `card` | `#1e2329` | All card, panel, modal, aside backgrounds |
-| `elevated` | `#2b3139` | Table headers, dropdowns, tooltips, dividers |
-| `primary` | `#fcd535` | ALL CTAs, active nav item background/text |
-| `primary-hover` | `#f0b90b` | Button active/hover state |
-| `primary-disabled` | `#3a3a1f` | Disabled CTA background |
-| `ink` | `#181a20` | Text on primary (on yellow buttons) |
-| `body` | `#eaecef` | Primary text on dark surfaces |
-| `muted` | `#707a8a` | Labels, secondary text, placeholders |
-| `muted-strong` | `#929aa5` | Strong muted text, icon hints |
-| `border` | `#2b3139` | All borders on dark surfaces (hairline) |
-| `up` | `#0ecb81` | Success, online, positive delta, improvement |
-| `down` | `#f6465d` | Error, offline, negative delta, warnings |
-| `info` | `#3b82f6` | Info badges, help indicators |
-| `on-primary` | `#181a20` | Text on yellow — same as `ink` |
-| `on-dark` | `#ffffff` | White text |
+| Token Name         | Hex       | Usage                                        |
+| ------------------ | --------- | -------------------------------------------- |
+| `canvas`           | `#0b0e11` | Page background (flat, NO gradient)          |
+| `card`             | `#1e2329` | All card, panel, modal, aside backgrounds    |
+| `elevated`         | `#2b3139` | Table headers, dropdowns, tooltips, dividers |
+| `primary`          | `#fcd535` | ALL CTAs, active nav item background/text    |
+| `primary-hover`    | `#f0b90b` | Button active/hover state                    |
+| `primary-disabled` | `#3a3a1f` | Disabled CTA background                      |
+| `ink`              | `#181a20` | Text on primary (on yellow buttons)          |
+| `body`             | `#eaecef` | Primary text on dark surfaces                |
+| `muted`            | `#707a8a` | Labels, secondary text, placeholders         |
+| `muted-strong`     | `#929aa5` | Strong muted text, icon hints                |
+| `border`           | `#2b3139` | All borders on dark surfaces (hairline)      |
+| `up`               | `#0ecb81` | Success, online, positive delta, improvement |
+| `down`             | `#f6465d` | Error, offline, negative delta, warnings     |
+| `info`             | `#3b82f6` | Info badges, help indicators                 |
+| `on-primary`       | `#181a20` | Text on yellow — same as `ink`               |
+| `on-dark`          | `#ffffff` | White text                                   |
 
 **NO box-shadows on surfaces. NO gradients anywhere. Flat design only.**
 
@@ -124,44 +125,67 @@ theme: {
 
 /* ── Design Tokens as CSS Custom Properties ─────────── */
 :root {
-  --color-canvas:           #0b0e11;
-  --color-card:             #1e2329;
-  --color-elevated:         #2b3139;
-  --color-primary:          #fcd535;
-  --color-primary-hover:    #f0b90b;
+  --color-canvas: #0b0e11;
+  --color-card: #1e2329;
+  --color-elevated: #2b3139;
+  --color-primary: #fcd535;
+  --color-primary-hover: #f0b90b;
   --color-primary-disabled: #3a3a1f;
-  --color-body:             #eaecef;
-  --color-muted:            #707a8a;
-  --color-muted-strong:     #929aa5;
-  --color-border:           #2b3139;
-  --color-up:               #0ecb81;
-  --color-down:             #f6465d;
-  --color-info:             #3b82f6;
-  --color-on-primary:       #181a20;
-  --color-on-dark:          #ffffff;
+  --color-body: #eaecef;
+  --color-muted: #707a8a;
+  --color-muted-strong: #929aa5;
+  --color-border: #2b3139;
+  --color-up: #0ecb81;
+  --color-down: #f6465d;
+  --color-info: #3b82f6;
+  --color-on-primary: #181a20;
+  --color-on-dark: #ffffff;
 }
 
 /* ── Base resets ─────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; }
-html { min-width: 320px; color-scheme: dark; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  min-width: 320px;
+  color-scheme: dark;
+}
 body {
   margin: 0;
-  min-height: 100dvh;      /* dynamic viewport — avoids mobile browser chrome overflow */
-  background: #0b0e11;     /* flat canvas — NO gradient */
+  min-height: 100dvh; /* dynamic viewport — avoids mobile browser chrome overflow */
+  background: #0b0e11; /* flat canvas — NO gradient */
   color: #eaecef;
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-  font-feature-settings: 'cv02','cv03','cv04','cv11';
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
 }
-button, input, select, textarea { font: inherit; }
-button { letter-spacing: 0; cursor: pointer; }
-a { color: inherit; text-decoration: none; }
-table { border-collapse: collapse; width: 100%; }
-img { display: block; max-width: 100%; }
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button {
+  letter-spacing: 0;
+  cursor: pointer;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+img {
+  display: block;
+  max-width: 100%;
+}
 
 /* ── Component utilities ─────────────────────────────── */
 @layer components {
-
   /* Buttons */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 
@@ -292,10 +316,18 @@ img { display: block; max-width: 100%; }
   }
 
   /* Status dots */
-  .dot-up     { @apply inline-block w-2 h-2 rounded-full bg-up; }
-  .dot-down   { @apply inline-block w-2 h-2 rounded-full bg-down; }
-  .dot-warn   { @apply inline-block w-2 h-2 rounded-full bg-yellow-500; }
-  .dot-muted  { @apply inline-block w-2 h-2 rounded-full bg-muted; }
+  .dot-up {
+    @apply inline-block w-2 h-2 rounded-full bg-up;
+  }
+  .dot-down {
+    @apply inline-block w-2 h-2 rounded-full bg-down;
+  }
+  .dot-warn {
+    @apply inline-block w-2 h-2 rounded-full bg-yellow-500;
+  }
+  .dot-muted {
+    @apply inline-block w-2 h-2 rounded-full bg-muted;
+  }
 
   /* Skeleton loader */
   .skeleton {
@@ -316,7 +348,10 @@ img { display: block; max-width: 100%; }
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <meta name="theme-color" content="#0b0e11" />
-    <meta name="description" content="CleanPlates — Smart Mess Waste Intelligence Platform" />
+    <meta
+      name="description"
+      content="CleanPlates — Smart Mess Waste Intelligence Platform"
+    />
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
@@ -333,26 +368,31 @@ img { display: block; max-width: 100%; }
 
 ```typescript
 export const ROLES = {
-  SUPER_ADMIN:       'super_admin',
+  SUPER_ADMIN: 'super_admin',
   INSTITUTION_ADMIN: 'institution_admin',
-  MESS_ADMIN:        'mess_admin',
-  ANALYTICS_VIEWER:  'analytics_viewer',
-  STAFF_OPERATOR:    'staff_operator',
+  MESS_ADMIN: 'mess_admin',
+  ANALYTICS_VIEWER: 'analytics_viewer',
+  STAFF_OPERATOR: 'staff_operator'
 } as const;
 
-export type Role = typeof ROLES[keyof typeof ROLES];
+export type Role = (typeof ROLES)[keyof typeof ROLES];
 
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'] as const;
-export type MealType = typeof MEAL_TYPES[number];
+export type MealType = (typeof MEAL_TYPES)[number];
 
 export const WARNING_LEVELS = ['yellow', 'orange', 'red'] as const;
-export type WarningLevel = typeof WARNING_LEVELS[number];
+export type WarningLevel = (typeof WARNING_LEVELS)[number];
 
 export const STUDENT_STATUSES = ['green', 'yellow', 'orange', 'red'] as const;
-export type StudentStatus = typeof STUDENT_STATUSES[number];
+export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 
-export const PENALTY_TYPES = ['points', 'monetary', 'restriction', 'suspension'] as const;
-export type PenaltyType = typeof PENALTY_TYPES[number];
+export const PENALTY_TYPES = [
+  'points',
+  'monetary',
+  'restriction',
+  'suspension'
+] as const;
+export type PenaltyType = (typeof PENALTY_TYPES)[number];
 ```
 
 ---
@@ -605,8 +645,9 @@ Features:
 ### 17. Migrate `DashboardShell.svelte`
 
 Replace all old token classes:
+
 - `bg-white` → `bg-card`
-- `border-line` → `border-border`  
+- `border-line` → `border-border`
 - `text-ink` → `text-body`
 - `bg-slate-100` → `bg-elevated`
 - `bg-fresh text-white` (active nav) → `bg-primary text-on-primary`
@@ -621,17 +662,17 @@ Replace all old token classes:
 
 ### 18. Migrate All Existing UI Components
 
-| Component | Key Changes |
-|-----------|-------------|
-| `Button.svelte` | Use `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger` + `.btn-sm` |
-| `Card.svelte` | Use `.card` class (no shadow) |
-| `StatCard.svelte` | Use `.card`, `text-body`, tone=good→`text-up`, tone=bad→`text-down`, tone=warn→`text-primary` |
-| `StatusBadge.svelte` | Use `.badge-up`, `.badge-down`, `.badge-muted`, `.badge-primary` |
-| `Modal.svelte` | Overlay: `bg-canvas/80` backdrop; modal: `.card` with `max-w-lg` |
-| `EmptyState.svelte` | Text: `text-muted`, icon: `text-muted` |
-| `ToastHost.svelte` | Success toast: `bg-card border-up/30`; error: `bg-card border-down/30` |
-| `ChartCard.svelte` | `.card`, Chart.js dark theme colors (canvas, grid, labels) |
-| `Gauge.svelte` | Dark gauge SVG |
+| Component            | Key Changes                                                                                   |
+| -------------------- | --------------------------------------------------------------------------------------------- |
+| `Button.svelte`      | Use `.btn-primary`, `.btn-secondary`, `.btn-ghost`, `.btn-danger` + `.btn-sm`                 |
+| `Card.svelte`        | Use `.card` class (no shadow)                                                                 |
+| `StatCard.svelte`    | Use `.card`, `text-body`, tone=good→`text-up`, tone=bad→`text-down`, tone=warn→`text-primary` |
+| `StatusBadge.svelte` | Use `.badge-up`, `.badge-down`, `.badge-muted`, `.badge-primary`                              |
+| `Modal.svelte`       | Overlay: `bg-canvas/80` backdrop; modal: `.card` with `max-w-lg`                              |
+| `EmptyState.svelte`  | Text: `text-muted`, icon: `text-muted`                                                        |
+| `ToastHost.svelte`   | Success toast: `bg-card border-up/30`; error: `bg-card border-down/30`                        |
+| `ChartCard.svelte`   | `.card`, Chart.js dark theme colors (canvas, grid, labels)                                    |
+| `Gauge.svelte`       | Dark gauge SVG                                                                                |
 
 ---
 
@@ -644,8 +685,8 @@ Create `src/lib/utils/chartDefaults.ts`:
 import { Chart, defaults } from 'chart.js';
 
 export function applyDarkChartDefaults() {
-  defaults.color = '#707a8a';           // muted text for labels
-  defaults.borderColor = '#2b3139';    // border for grid lines
+  defaults.color = '#707a8a'; // muted text for labels
+  defaults.borderColor = '#2b3139'; // border for grid lines
   defaults.font.family = 'Inter, sans-serif';
   defaults.plugins.legend.labels.color = '#eaecef';
   defaults.scale.grid.color = '#2b3139';
@@ -655,11 +696,11 @@ export function applyDarkChartDefaults() {
 // Standard dataset colors
 export const CHART_COLORS = {
   primary: '#fcd535',
-  up:      '#0ecb81',
-  down:    '#f6465d',
-  info:    '#3b82f6',
-  muted:   '#707a8a',
-  series:  ['#fcd535', '#0ecb81', '#3b82f6', '#f6465d', '#707a8a', '#929aa5'],
+  up: '#0ecb81',
+  down: '#f6465d',
+  info: '#3b82f6',
+  muted: '#707a8a',
+  series: ['#fcd535', '#0ecb81', '#3b82f6', '#f6465d', '#707a8a', '#929aa5']
 };
 ```
 
@@ -672,12 +713,14 @@ Call `applyDarkChartDefaults()` in `src/routes/+layout.svelte` on mount.
 **Layout:** Two-column on desktop (left brand panel + right form), single column on mobile.
 
 **Left panel (hidden on mobile):**
+
 - Full height, `bg-card` background
 - CleanPlates logo (CP monogram) in `bg-primary text-on-primary` circle
 - Product name in `text-body`, tagline in `text-muted`
 - Stats strip: total waste tracked, institutions, devices — `text-primary` numbers
 
 **Right panel (form):**
+
 - `bg-canvas` background (or `bg-card` on mobile)
 - Card for the form: `card p-8 max-w-sm w-full`
 - `<h1>` "Welcome back"
@@ -690,6 +733,7 @@ Call `applyDarkChartDefaults()` in `src/routes/+layout.svelte` on mount.
 - Loading: spinner inside button, button disabled
 
 **API calls:**
+
 - `POST /api/v1/auth/login` → `AuthStore.login(email, password, rememberMe)`
 - `GET /api/v1/auth/me` → load user on refresh
 - On success: navigate to `/dashboard` (admin roles) or `/dashboard/monitoring` (staff_operator)
@@ -703,6 +747,7 @@ Call `applyDarkChartDefaults()` in `src/routes/+layout.svelte` on mount.
 ### 21. `src/lib/stores/toast.ts` — Verify API
 
 Current `notify(msg, type)` must support:
+
 - `notify(message, 'success' | 'error' | 'warning' | 'info')`
 - Auto-dismiss after 4s
 - Max 5 toasts visible
