@@ -25,6 +25,7 @@
   import Gauge from '$lib/components/charts/Gauge.svelte';
   import { dateTime, grams, number, pct, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
+  import { WARNING_LEVELS } from '$lib/utils/constants';
 
   type ProfileTab = 'overview' | 'waste' | 'warnings';
   type WasteStats = {
@@ -576,9 +577,9 @@
   <form class="space-y-3" on:submit|preventDefault={issueWarning}>
     <FormField label="Level" required>
       <select class="select-field" bind:value={warningForm.level}>
-        <option value="level_1">Level 1</option>
-        <option value="level_2">Level 2</option>
-        <option value="level_3">Level 3</option>
+        {#each WARNING_LEVELS as level, i}
+          <option value={level}>Level {i + 1}</option>
+        {/each}
       </select>
     </FormField>
     <FormField label="Reason" required>

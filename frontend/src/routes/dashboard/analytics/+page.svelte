@@ -21,6 +21,7 @@
   import ChartCard from '$lib/components/charts/ChartCard.svelte';
   import { grams, number, pct, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
+  import { STUDENT_STATUSES, MEAL_TYPES, PERIOD_OPTIONS } from '$lib/utils/constants';
 
   type AnalyticsTab =
     | 'trends'
@@ -28,7 +29,7 @@
     | 'contributors'
     | 'improvement'
     | 'sustainability';
-  type TrendGranularity = 'daily' | 'weekly' | 'monthly';
+  type TrendGranularity = 'daily' | 'weekly' | 'semester';
   type TrendPoint = { label: string; value: number };
   type TrendPayload = { type?: string; data?: TrendPoint[] };
   type Contributor = {
@@ -124,9 +125,7 @@
       type: 'select',
       options: [
         { value: '', label: 'All meals' },
-        { value: 'breakfast', label: 'Breakfast' },
-        { value: 'lunch', label: 'Lunch' },
-        { value: 'dinner', label: 'Dinner' }
+        ...MEAL_TYPES.map((m) => ({ value: m, label: titleCase(m) }))
       ]
     },
     { key: 'food', label: 'Food', type: 'text', placeholder: 'Rice' },
@@ -136,10 +135,7 @@
       type: 'select',
       options: [
         { value: '', label: 'All statuses' },
-        { value: 'green', label: 'Green' },
-        { value: 'yellow', label: 'Yellow' },
-        { value: 'orange', label: 'Orange' },
-        { value: 'red', label: 'Red' }
+        ...STUDENT_STATUSES.map((s) => ({ value: s, label: titleCase(s) }))
       ]
     }
   ];
@@ -149,6 +145,7 @@
   let trendGranularity: TrendGranularity = 'weekly';
   let filters = defaultFilters();
   let loading = true;
+  let refreshing = false;
   let error = '';
   let trendData: TrendPayload = { data: [] };
   let heatmap: HeatmapPoint[] = [];
@@ -207,7 +204,7 @@
   }
 
   function trendType() {
-    return trendGranularity === 'monthly' ? 'semester' : trendGranularity;
+    return trendGranularity;
   }
 
   function analyticsQuery(extra: Record<string, string | number> = {}) {
@@ -265,10 +262,12 @@
   function resetFilters() {
     period = '30d';
     filters = defaultFilters();
+    loadAnalytics(true);
   }
 
-  async function loadAnalytics() {
-    loading = true;
+  async function loadAnalytics(fullLoad = false) {
+    if (fullLoad) loading = true;
+    else refreshing = true;
     error = '';
     try {
       const [
@@ -316,6 +315,7 @@
       error = err instanceof Error ? err.message : 'Could not load analytics';
     } finally {
       loading = false;
+      refreshing = false;
     }
   }
 
@@ -337,7 +337,7 @@
     }
   }
 
-  onMount(loadAnalytics);
+  onMount(() => loadAnalytics(true));
 </script>
 
 <svelte:head>
@@ -353,18 +353,17 @@
     <select
       class="select-field"
       bind:value={period}
-      on:change={loadAnalytics}
+      on:change={() => loadAnalytics()}
       id="select-analytics-period"
     >
-      <option value="today">Today</option>
-      <option value="7d">7 days</option>
-      <option value="30d">30 days</option>
-      <option value="semester">Semester</option>
+      {#each PERIOD_OPTIONS as opt}
+        <option value={opt.value}>{opt.label}</option>
+      {/each}
       <option value="all">All</option>
     </select>
     <Button
       variant="secondary"
-      on:click={loadAnalytics}
+      on:click={() => loadAnalytics()}
       id="btn-refresh-analytics"
     >
       <RefreshCw size={16} />
@@ -392,6 +391,10 @@
   onReset={resetFilters}
 />
 
+{#if refreshing}
+  <div class="mt-2 h-0.5 w-full animate-pulse rounded-full bg-primary/40"></div>
+{/if}
+
 <div class="mt-5">
   <Tabs
     tabs={analyticsTabs}
@@ -403,7 +406,7 @@
 {#if error}
   <div class="mt-5">
     <Card title="Analytics unavailable" description={error}>
-      <Button on:click={loadAnalytics}>Retry</Button>
+      <Button on:click={() => loadAnalytics(true)}>Retry</Button>
     </Card>
   </div>
 {:else if loading}
@@ -415,7 +418,7 @@
   <div class="mt-5 space-y-5">
     <Card title="Trend cadence" description="Line chart can pivot between daily, weekly, and monthly views.">
       <div class="flex flex-wrap gap-2">
-        {#each ['daily', 'weekly', 'monthly'] as cadence}
+        {#each ['daily', 'weekly', 'semester'] as cadence}
           <button
             class={`h-9 rounded-md px-4 text-sm font-semibold transition-colors ${
               trendGranularity === cadence
@@ -484,7 +487,7 @@
                   {@const point = heatPoint(weekday, hour)}
                   {@const value = heatValue(point ?? {})}
                   <div
-                    class="grid h-8 place-items-center rounded-sm border border-border text-[10px] font-semibold text-ink"
+                    class="grid h-8 place-items-center rounded-sm border border-border text-[10px] font-semibold text-body"
                     style={heatColor(value)}
                     title={`${weekday} ${hour}:00 - ${grams(value)}`}
                     aria-label={`${weekday} ${hour}:00 ${grams(value)}`}

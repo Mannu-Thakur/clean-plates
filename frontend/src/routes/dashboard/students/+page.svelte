@@ -1,4 +1,4 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import {
@@ -28,7 +28,7 @@
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
   import { grams, number, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
-  import { STUDENT_STATUSES } from '$lib/utils/constants';
+  import { STUDENT_STATUSES, WARNING_LEVELS } from '$lib/utils/constants';
 
   type StudentFilters = {
     status: string;
@@ -680,9 +680,9 @@
   <form class="space-y-3" on:submit|preventDefault={issueQuickWarning}>
     <FormField label="Level" required>
       <select class="select-field" bind:value={quickWarning.level}>
-        <option value="level_1">Level 1</option>
-        <option value="level_2">Level 2</option>
-        <option value="level_3">Level 3</option>
+        {#each WARNING_LEVELS as level, i}
+          <option value={level}>Level {i + 1}</option>
+        {/each}
       </select>
     </FormField>
     <FormField label="Reason" required>
@@ -718,9 +718,9 @@
   <form class="space-y-3" on:submit|preventDefault={issueBulkWarning}>
     <FormField label="Level" required>
       <select class="select-field" bind:value={bulkWarning.level}>
-        <option value="level_1">Level 1</option>
-        <option value="level_2">Level 2</option>
-        <option value="level_3">Level 3</option>
+        {#each WARNING_LEVELS as level, i}
+          <option value={level}>Level {i + 1}</option>
+        {/each}
       </select>
     </FormField>
     <FormField label="Reason" required>
