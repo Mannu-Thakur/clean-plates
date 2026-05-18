@@ -50,6 +50,7 @@ def _filtered_stmt(
     *,
     user_id: str | None = None,
     event_type: str | None = None,
+    action: str | None = None,
     resource_type: str | None = None,
     date_from: date | datetime | None = None,
     date_to: date | datetime | None = None,
@@ -60,6 +61,8 @@ def _filtered_stmt(
         stmt = stmt.where(AuditEventModel.user_id == user_id)
     if event_type:
         stmt = stmt.where(AuditEventModel.event_type == event_type.strip())
+    if action:
+        stmt = stmt.where(AuditEventModel.action == action.strip())
     if resource_type:
         stmt = stmt.where(AuditEventModel.resource_type == resource_type.strip())
     if date_from:
@@ -128,6 +131,7 @@ async def list_events(
     *,
     user_id: str | None = None,
     event_type: str | None = None,
+    action: str | None = None,
     resource_type: str | None = None,
     date_from: date | datetime | None = None,
     date_to: date | datetime | None = None,
@@ -142,6 +146,7 @@ async def list_events(
     base = _filtered_stmt(
         user_id=user_id,
         event_type=event_type,
+        action=action,
         resource_type=resource_type,
         date_from=date_from,
         date_to=date_to,
@@ -211,6 +216,7 @@ async def get_timeline(
     *,
     user_id: str | None = None,
     event_type: str | None = None,
+    action: str | None = None,
     resource_type: str | None = None,
     date_from: date | datetime | None = None,
     date_to: date | datetime | None = None,
@@ -221,6 +227,7 @@ async def get_timeline(
         _filtered_stmt(
             user_id=user_id,
             event_type=event_type,
+            action=action,
             resource_type=resource_type,
             date_from=date_from,
             date_to=date_to,
@@ -255,6 +262,7 @@ async def export_log(
     current_user: UserSchema,
     user_id: str | None = None,
     event_type: str | None = None,
+    action: str | None = None,
     resource_type: str | None = None,
     date_from: date | datetime | None = None,
     date_to: date | datetime | None = None,
@@ -268,6 +276,7 @@ async def export_log(
         _filtered_stmt(
             user_id=user_id,
             event_type=event_type,
+            action=action,
             resource_type=resource_type,
             date_from=date_from,
             date_to=date_to,

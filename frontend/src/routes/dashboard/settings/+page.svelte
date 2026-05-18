@@ -14,10 +14,17 @@
   import type { User } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import ConfirmDialog from '$lib/components/ui/ConfirmDialog.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import FileUpload from '$lib/components/ui/FileUpload.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
   import StatCard from '$lib/components/ui/StatCard.svelte';
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+  import Tabs, { type TabItem } from '$lib/components/ui/Tabs.svelte';
+  import Toggle from '$lib/components/ui/Toggle.svelte';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
+  import { auth } from '$lib/stores/auth';
+  import { notify } from '$lib/stores/toast';
   import {
     dateTime,
     fileSize,
@@ -25,9 +32,20 @@
     pct,
     titleCase
   } from '$lib/utils/format';
-  import { notify } from '$lib/stores/toast';
 
-  type Section = 'users' | 'security' | 'backup' | 'appearance' | 'maintenance';
+  type SettingsTab =
+    | 'users'
+    | 'security'
+    | 'backups'
+    | 'maintenance'
+    | 'appearance';
+  type SettingsUser = User & { created_at?: string | null };
+  type Role = {
+    id?: string;
+    name: string;
+    display_name?: string | null;
+    description?: string | null;
+  };
   type Backup = {
     id: string;
     filename: string;
@@ -36,140 +54,318 @@
     status: string;
     created_at: string;
   };
-
-  const sections: Section[] = [
-    'users',
-    'security',
-    'backup',
-    'appearance',
-    'maintenance'
-  ];
-
-  let activeSection: Section = 'users';
-  let loading = true;
-  let users: User[] = [];
-  let backups: Backup[] = [];
-  let security: Record<string, unknown> = {};
-  let securityJson = '{}';
-  let appearance = {
-    theme: 'light',
-    logo_path: '',
-    primary_color: '#188a6b',
-    institution_display_name: ''
+  type SecurityConfig = {
+    access_token_expiry_minutes: number;
+    refresh_token_expiry_days: number;
+    min_password_length: number;
+    require_uppercase: boolean;
+    require_numbers: boolean;
+    max_login_attempts: number;
+    lockout_duration_minutes: number;
+    session_timeout_minutes: number;
   };
-  let systemInfo: Record<string, unknown> = {};
-  let userOpen = false;
-  let userForm = { name: '', email: '', role: 'mess_admin', password: '' };
+  type AppearanceConfig = {
+    theme: string;
+    logo_path?: string | null;
+    primary_color: string;
+    institution_display_name?: string | null;
+  };
+  type SystemInfo = {
+    os_version?: string;
+    python_version?: string;
+    app_version?: string;
+    db_size_mb?: number;
+    uptime_seconds?: number;
+    disk_usage_pct?: number;
+    ram_usage_pct?: number;
+    cpu_usage_pct?: number;
+  };
+
+  const tabs: TabItem[] = [
+    { id: 'users', label: 'Users' },
+    { id: 'security', label: 'Security' },
+    { id: 'backups', label: 'Backups' },
+    { id: 'maintenance', label: 'Maintenance' },
+    { id: 'appearance', label: 'Appearance' }
+  ];
+  const defaultRoles = [
+    'super_admin',
+    'institution_admin',
+    'mess_admin',
+    'analytics_viewer',
+    'staff_operator'
+  ];
+  const defaultSecurity: SecurityConfig = {
+    access_token_expiry_minutes: 60,
+    refresh_token_expiry_days: 7,
+    min_password_length: 8,
+    require_uppercase: true,
+    require_numbers: true,
+    max_login_attempts: 5,
+    lockout_duration_minutes: 15,
+    session_timeout_minutes: 120
+  };
+  const defaultAppearance: AppearanceConfig = {
+    theme: 'dark',
+    logo_path: null,
+    primary_color: '#fcd535',
+    institution_display_name: 'CleanPlates'
+  };
+
+  let activeTab: SettingsTab = 'users';
+  let loading = true;
+  let saving = false;
+  let error = '';
+  let users: SettingsUser[] = [];
+  let roles: Role[] = [];
+  let backups: Backup[] = [];
+  let security: SecurityConfig = { ...defaultSecurity };
+  let appearance: AppearanceConfig = { ...defaultAppearance };
+  let systemInfo: SystemInfo = {};
   let logoFile: File | null = null;
   let restoreFile: File | null = null;
+  let userModalOpen = false;
+  let editingUser: SettingsUser | null = null;
+  let userForm = {
+    name: '',
+    email: '',
+    role: 'mess_admin',
+    password: ''
+  };
+  let deactivateTarget: SettingsUser | null = null;
+  let resetPasswordTarget: SettingsUser | null = null;
+  let tempPassword = '';
+  let restoreConfirmOpen = false;
+  let maintenanceConfirm: 'clear-cache' | 'optimize-db' | null = null;
+
+  $: roleOptions = roles.length ? roles.map((role) => role.name) : defaultRoles;
+  $: activeSuperAdmins = users.filter(
+    (user) => user.role === 'super_admin' && user.is_active
+  ).length;
+
+  async function fetchUsers() {
+    users = await api.get<SettingsUser[]>('/settings/users');
+  }
+
+  async function fetchRoles() {
+    roles = await api.get<Role[]>('/roles/').catch(() => []);
+  }
+
+  async function fetchSecurity() {
+    security = {
+      ...defaultSecurity,
+      ...(await api.get<SecurityConfig>('/settings/security'))
+    };
+  }
+
+  async function fetchBackups() {
+    backups = await api.get<Backup[]>('/settings/backups');
+  }
+
+  async function fetchAppearance() {
+    appearance = {
+      ...defaultAppearance,
+      ...(await api
+        .get<AppearanceConfig>('/settings/appearance')
+        .catch(() => ({})))
+    };
+  }
+
+  async function fetchSystemInfo() {
+    systemInfo = await api
+      .get<SystemInfo>('/settings/maintenance/system-info')
+      .catch(() => ({}));
+  }
 
   async function loadSettings() {
     loading = true;
+    error = '';
     try {
-      const [userData, backupData, appearanceData, systemData] =
-        await Promise.all([
-          api.get<User[]>('/settings/users').catch(() => []),
-          api.get<Backup[]>('/settings/backups').catch(() => []),
-          api
-            .get<typeof appearance>('/settings/appearance')
-            .catch(() => appearance),
-          api
-            .get<Record<string, unknown>>('/settings/maintenance/system-info')
-            .catch(() => ({}))
-        ]);
-      users = userData;
-      backups = backupData;
-      appearance = { ...appearance, ...appearanceData };
-      systemInfo = systemData;
-      security = await api
-        .get<Record<string, unknown>>('/settings/security')
-        .catch(() => ({}));
-      securityJson = JSON.stringify(security, null, 2);
+      await Promise.all([
+        fetchUsers(),
+        fetchRoles(),
+        fetchSecurity(),
+        fetchBackups(),
+        fetchAppearance(),
+        fetchSystemInfo()
+      ]);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Could not load settings.';
     } finally {
       loading = false;
     }
   }
 
+  function openUserModal(user: SettingsUser | null = null) {
+    editingUser = user;
+    userForm = {
+      name: user?.name ?? '',
+      email: user?.email ?? '',
+      role: user?.role ?? 'mess_admin',
+      password: ''
+    };
+    userModalOpen = true;
+  }
+
   async function createUser() {
+    await api.post('/settings/users', {
+      name: userForm.name,
+      email: userForm.email,
+      role: userForm.role,
+      password: userForm.password || null
+    });
+  }
+
+  async function updateUser() {
+    if (!editingUser) return;
+    await api.patch(`/settings/users/${editingUser.id}`, {
+      name: userForm.name,
+      email: userForm.email,
+      role: userForm.role
+    });
+  }
+
+  async function saveUser() {
+    saving = true;
     try {
-      await api.post('/settings/users', {
-        ...userForm,
-        password: userForm.password || null
-      });
-      notify('User created.', 'success');
-      userOpen = false;
-      userForm = { name: '', email: '', role: 'mess_admin', password: '' };
-      await loadSettings();
+      if (editingUser) {
+        await updateUser();
+        notify('User updated.', 'success');
+      } else {
+        await createUser();
+        notify(
+          'User created. Temporary credentials were emailed if generated.',
+          'success'
+        );
+      }
+      userModalOpen = false;
+      await fetchUsers();
     } catch (err) {
       notify(
-        err instanceof Error ? err.message : 'Could not create user.',
+        err instanceof Error ? err.message : 'Could not save user.',
+        'error'
+      );
+    } finally {
+      saving = false;
+    }
+  }
+
+  function canDeactivate(user: SettingsUser) {
+    if (!user.is_active) return false;
+    if (user.id === $auth.user?.id) return false;
+    if (user.role === 'super_admin' && activeSuperAdmins <= 1) return false;
+    return true;
+  }
+
+  async function deactivateUser() {
+    if (!deactivateTarget) return;
+    const target = deactivateTarget;
+    deactivateTarget = null;
+    try {
+      await api.post(`/settings/users/${target.id}/deactivate`);
+      notify('User deactivated.', 'success');
+      await fetchUsers();
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not deactivate user.',
         'error'
       );
     }
   }
 
-  async function deactivate(user: User) {
-    if (!window.confirm(`Deactivate ${user.email}?`)) return;
-    await api.post(`/settings/users/${user.id}/deactivate`);
-    notify('User deactivated.', 'success');
-    await loadSettings();
-  }
-
-  async function resetPassword(user: User) {
-    const result = await api.post<{ temp_password: string; message: string }>(
-      `/settings/users/${user.id}/reset-password`
-    );
-    notify(`Temporary password: ${result.temp_password}`, 'info');
+  async function resetPassword() {
+    if (!resetPasswordTarget) return;
+    const target = resetPasswordTarget;
+    resetPasswordTarget = null;
+    try {
+      const result = await api.post<{ temp_password: string; message: string }>(
+        `/settings/users/${target.id}/reset-password`
+      );
+      tempPassword = result.temp_password;
+      notify('Temporary password generated.', 'success');
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not reset password.',
+        'error'
+      );
+    }
   }
 
   async function saveSecurity() {
-    if (
-      !window.confirm(
-        'Save security settings? Invalid values (e.g. lockout_duration_minutes: 0) may affect all user logins.'
-      )
-    )
-      return;
+    saving = true;
     try {
-      security = JSON.parse(securityJson);
       await api.patch('/settings/security', security);
       notify('Security settings saved.', 'success');
+      await fetchSecurity();
     } catch (err) {
       notify(
-        err instanceof Error
-          ? err.message
-          : 'Could not save security settings.',
+        err instanceof Error ? err.message : 'Could not save security.',
+        'error'
+      );
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function triggerBackup() {
+    try {
+      await api.post('/settings/backups');
+      notify('Backup queued.', 'success');
+      await fetchBackups();
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not queue backup.',
         'error'
       );
     }
   }
 
-  async function backupNow() {
-    await api.post('/settings/backups');
-    notify('Backup started.', 'success');
-    await loadSettings();
-  }
-
   async function downloadBackup(backup: Backup) {
-    await api.download(
-      `/settings/backups/${backup.id}/download`,
-      backup.filename
-    );
+    try {
+      await api.download(
+        `/settings/backups/${backup.id}/download`,
+        backup.filename
+      );
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not download backup.',
+        'error'
+      );
+    }
   }
 
   async function restoreBackup() {
+    restoreConfirmOpen = false;
     if (!restoreFile) {
       notify('Choose a backup file first.', 'error');
       return;
     }
-    if (!window.confirm('Restore this backup? The backend may restart.'))
-      return;
-    await api.upload('/settings/backups/restore', 'backup_file', restoreFile);
-    notify('Restore queued.', 'success');
+    try {
+      await api.upload('/settings/backups/restore', 'backup_file', restoreFile);
+      notify('Restore staged. The backend may restart to apply it.', 'success');
+      restoreFile = null;
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not restore backup.',
+        'error'
+      );
+    }
   }
 
   async function saveAppearance() {
-    await api.patch('/settings/appearance', appearance);
-    notify('Appearance saved.', 'success');
+    saving = true;
+    try {
+      await api.patch('/settings/appearance', appearance);
+      notify('Appearance saved.', 'success');
+      await fetchAppearance();
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not save appearance.',
+        'error'
+      );
+    } finally {
+      saving = false;
+    }
   }
 
   async function uploadLogo() {
@@ -177,37 +373,73 @@
       notify('Choose a logo file first.', 'error');
       return;
     }
-    const result = await api.upload<{ logo_url: string }>(
-      '/settings/appearance/logo',
-      'image_file',
-      logoFile
-    );
-    appearance.logo_path = result.logo_url;
-    notify('Logo uploaded.', 'success');
+    try {
+      const result = await api.upload<{ logo_url: string }>(
+        '/settings/appearance/logo',
+        'image_file',
+        logoFile
+      );
+      appearance = { ...appearance, logo_path: result.logo_url };
+      logoFile = null;
+      notify('Logo uploaded.', 'success');
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not upload logo.',
+        'error'
+      );
+    }
   }
 
-  async function clearCache() {
-    const result = await api.post<{ keys_removed: number }>(
-      '/settings/maintenance/clear-cache'
-    );
-    notify(`Cleared ${number(result.keys_removed)} cache keys.`, 'success');
-  }
-
-  async function optimizeDb() {
-    const result = await api.post<{ freed_mb: number }>(
-      '/settings/maintenance/optimize-db'
-    );
-    notify(
-      `Optimized database, freed ${number(result.freed_mb)} MB.`,
-      'success'
-    );
+  async function runMaintenanceAction() {
+    const action = maintenanceConfirm;
+    maintenanceConfirm = null;
+    try {
+      if (action === 'clear-cache') {
+        const result = await api.post<{ keys_removed: number }>(
+          '/settings/maintenance/clear-cache'
+        );
+        notify(`Cleared ${number(result.keys_removed)} cache keys.`, 'success');
+      } else if (action === 'optimize-db') {
+        const result = await api.post<{ freed_mb: number }>(
+          '/settings/maintenance/optimize-db'
+        );
+        notify(
+          `Optimized database, freed ${number(result.freed_mb)} MB.`,
+          'success'
+        );
+      }
+      await fetchSystemInfo();
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Maintenance action failed.',
+        'error'
+      );
+    }
   }
 
   async function exportAll() {
-    await api.download(
-      '/settings/maintenance/export-all',
-      'cleanplates-export.zip'
-    );
+    try {
+      await api.download(
+        '/settings/maintenance/export-all',
+        'cleanplates-export.zip'
+      );
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not export data.',
+        'error'
+      );
+    }
+  }
+
+  function setSecurity(patch: Partial<SecurityConfig>) {
+    security = { ...security, ...patch };
+  }
+
+  function formatSeconds(seconds: number | undefined) {
+    const safe = Number(seconds ?? 0);
+    if (safe < 3600) return `${Math.round(safe / 60)} min`;
+    if (safe < 86400) return `${(safe / 3600).toFixed(1)} h`;
+    return `${(safe / 86400).toFixed(1)} d`;
   }
 
   onMount(loadSettings);
@@ -215,255 +447,523 @@
 
 <svelte:head><title>Settings | CleanPlates</title></svelte:head>
 
-<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <p class="label">Settings</p>
-    <h2 class="mt-1 text-2xl font-semibold text-body">
-      Users, security, backup, and maintenance
-    </h2>
-  </div>
-  <Button variant="secondary" on:click={loadSettings}
-    ><RefreshCw size={16} />Refresh</Button
-  >
-</div>
+<PageHeader
+  label="Settings"
+  title="Application administration"
+  description="Manage operators, security policy, backups, system maintenance, and branding."
+>
+  <svelte:fragment slot="actions">
+    <Button
+      variant="secondary"
+      on:click={loadSettings}
+      disabled={loading}
+      id="btn-refresh-settings"
+    >
+      <RefreshCw size={16} />Refresh
+    </Button>
+  </svelte:fragment>
+</PageHeader>
 
 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
   <StatCard
     title="Users"
     value={number(users.length)}
     helper="Admin and operators"
-    ><svelte:fragment slot="icon"><UserCog size={19} /></svelte:fragment
-    ></StatCard
   >
+    <svelte:fragment slot="icon"><UserCog size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="Backups"
     value={number(backups.length)}
     helper="Stored archives"
-    ><svelte:fragment slot="icon"><Database size={19} /></svelte:fragment
-    ></StatCard
   >
+    <svelte:fragment slot="icon"><Database size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="CPU"
     value={pct(Number(systemInfo.cpu_usage_pct ?? 0))}
-    helper="System info"
-    ><svelte:fragment slot="icon"><Database size={19} /></svelte:fragment
-    ></StatCard
+    helper="System load"
   >
+    <svelte:fragment slot="icon"><Database size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="Disk"
     value={pct(Number(systemInfo.disk_usage_pct ?? 0))}
-    helper={`${number(systemInfo.db_size_mb as number)} MB DB`}
-    ><svelte:fragment slot="icon"><Database size={19} /></svelte:fragment
-    ></StatCard
+    helper={`${number(systemInfo.db_size_mb)} MB DB`}
   >
+    <svelte:fragment slot="icon"><Database size={19} /></svelte:fragment>
+  </StatCard>
 </div>
 
-<div class="mt-5 grid gap-5 lg:grid-cols-[240px_1fr]">
-  <Card title="Settings">
-    <nav class="space-y-1">
-      {#each sections as section}<button
-          class={`w-full rounded-md px-3 py-2 text-left text-sm font-semibold ${activeSection === section ? 'bg-primary text-ink' : 'text-muted hover:bg-elevated hover:text-body'}`}
-          on:click={() => (activeSection = section)}
-          >{titleCase(section)}</button
-        >{/each}
-    </nav>
+{#if error}
+  <Card class="mt-5">
+    <div
+      class="rounded-md border border-down/30 bg-down/10 p-4 text-sm text-down"
+    >
+      {error}
+    </div>
   </Card>
+{:else}
+  <div class="mt-5 space-y-5">
+    <Card>
+      <Tabs
+        {tabs}
+        active={activeTab}
+        onChange={(id) => (activeTab = id as SettingsTab)}
+      />
+    </Card>
 
-  <Card title={titleCase(activeSection)}>
-    {#if loading}
-      <div class="h-96 animate-pulse rounded-lg bg-elevated"></div>
-    {:else if activeSection === 'users'}
-      <div class="mb-4 flex justify-end">
-        <Button on:click={() => (userOpen = true)} id="btn-add-user"
-          ><Plus size={16} />Add user</Button
-        >
-      </div>
-      {#if users.length === 0}<EmptyState title="No users" />{:else}
-        <div class="overflow-auto">
-          <table>
-            <thead class="bg-elevated"
-              ><tr
-                ><th class="th">Name</th><th class="th">Email</th><th class="th"
-                  >Role</th
-                ><th class="th">Last login</th><th class="th">Actions</th></tr
-              ></thead
-            ><tbody
-              >{#each users as user}<tr
-                  ><td class="td">{user.name}</td><td class="td"
-                    >{user.email}</td
-                  ><td class="td"><StatusBadge value={user.role} compact /></td
-                  ><td class="td">{dateTime(user.last_login)}</td><td class="td"
-                    ><div class="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        on:click={() => resetPassword(user)}
-                        id={`btn-reset-pwd-${user.id}`}>Reset</Button
-                      ><Button
-                        size="sm"
-                        variant="danger"
-                        on:click={() => deactivate(user)}
-                        id={`btn-deactivate-user-${user.id}`}>Deactivate</Button
-                      >
-                    </div></td
-                  ></tr
-                >{/each}</tbody
-            >
-          </table>
+    <Card title={tabs.find((tab) => tab.id === activeTab)?.label ?? 'Settings'}>
+      {#if loading}
+        <div class="h-96 skeleton"></div>
+      {:else if activeTab === 'users'}
+        <div class="mb-4 flex justify-end">
+          <Button on:click={() => openUserModal()} id="btn-add-user">
+            <Plus size={16} />Add user
+          </Button>
         </div>
-      {/if}
-    {:else if activeSection === 'security'}
-      <label
-        ><span class="label">Security JSON</span><textarea
-          class="textarea-field mt-2 min-h-[420px] w-full py-3 font-mono text-xs"
-          bind:value={securityJson}
-        ></textarea></label
-      >
-      <div class="mt-4 flex justify-end">
-        <Button on:click={saveSecurity} id="btn-save-security"
-          ><Save size={16} />Save security</Button
-        >
-      </div>
-    {:else if activeSection === 'backup'}
-      <div class="mb-4 flex flex-wrap justify-between gap-3">
-        <div class="flex gap-2">
-          <Button on:click={backupNow} id="btn-backup-now">Backup now</Button
-          ><Button
-            variant="secondary"
-            on:click={restoreBackup}
-            id="btn-restore-backup">Restore backup</Button
+        {#if users.length === 0}
+          <EmptyState title="No users" />
+        {:else}
+          <div class="overflow-auto rounded-lg border border-border">
+            <table>
+              <thead class="bg-elevated">
+                <tr>
+                  <th class="th">Name</th>
+                  <th class="th">Email</th>
+                  <th class="th">Role</th>
+                  <th class="th">Status</th>
+                  <th class="th">Last login</th>
+                  <th class="th text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {#each users as user}
+                  <tr>
+                    <td class="td font-semibold">{user.name}</td>
+                    <td class="td">{user.email}</td>
+                    <td class="td"><StatusBadge value={user.role} compact /></td
+                    >
+                    <td class="td"
+                      ><StatusBadge value={user.is_active} compact /></td
+                    >
+                    <td class="td">{dateTime(user.last_login)}</td>
+                    <td class="td">
+                      <div class="flex flex-wrap justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          on:click={() => openUserModal(user)}
+                          id={`btn-edit-user-${user.id}`}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          on:click={() => (resetPasswordTarget = user)}
+                          id={`btn-reset-pwd-${user.id}`}
+                        >
+                          <KeyRound size={14} />Reset
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          disabled={!canDeactivate(user)}
+                          on:click={() => (deactivateTarget = user)}
+                          id={`btn-deactivate-user-${user.id}`}
+                        >
+                          Deactivate
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                {/each}
+              </tbody>
+            </table>
+          </div>
+        {/if}
+      {:else if activeTab === 'security'}
+        <div class="grid gap-4 lg:grid-cols-3">
+          <label>
+            <span class="form-label">Access token expiry (min)</span>
+            <input
+              class="input-field"
+              type="number"
+              min="5"
+              bind:value={security.access_token_expiry_minutes}
+            />
+          </label>
+          <label>
+            <span class="form-label">Refresh token expiry (days)</span>
+            <input
+              class="input-field"
+              type="number"
+              min="1"
+              bind:value={security.refresh_token_expiry_days}
+            />
+          </label>
+          <label>
+            <span class="form-label">Session timeout (min)</span>
+            <input
+              class="input-field"
+              type="number"
+              min="5"
+              bind:value={security.session_timeout_minutes}
+            />
+          </label>
+          <label>
+            <span class="form-label">Minimum password length</span>
+            <input
+              class="input-field"
+              type="number"
+              min="8"
+              bind:value={security.min_password_length}
+            />
+          </label>
+          <label>
+            <span class="form-label">Max login attempts</span>
+            <input
+              class="input-field"
+              type="number"
+              min="1"
+              bind:value={security.max_login_attempts}
+            />
+          </label>
+          <label>
+            <span class="form-label">Lockout duration (min)</span>
+            <input
+              class="input-field"
+              type="number"
+              min="1"
+              bind:value={security.lockout_duration_minutes}
+            />
+          </label>
+        </div>
+        <div class="mt-5 grid gap-4 sm:grid-cols-2">
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <Toggle
+              value={security.require_uppercase}
+              label="Require uppercase letters"
+              onChange={(value) => setSecurity({ require_uppercase: value })}
+            />
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <Toggle
+              value={security.require_numbers}
+              label="Require numbers"
+              onChange={(value) => setSecurity({ require_numbers: value })}
+            />
+          </div>
+        </div>
+        <div class="mt-5 flex justify-end">
+          <Button
+            on:click={saveSecurity}
+            disabled={saving}
+            id="btn-save-security"
           >
+            <Save size={16} />Save security
+          </Button>
         </div>
-        <input
-          class="input-field py-2"
-          type="file"
-          on:change={(event) =>
-            (restoreFile = event.currentTarget.files?.[0] ?? null)}
-        />
-      </div>
-      {#if backups.length === 0}<EmptyState title="No backups" />{:else}
-        <div class="space-y-3">
-          {#each backups as backup}<div
-              class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
-            >
+      {:else if activeTab === 'backups'}
+        <div class="mb-5 grid gap-4 xl:grid-cols-[1fr_1fr]">
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p class="font-semibold">{backup.filename}</p>
+                <p class="font-semibold text-body">Manual backup</p>
                 <p class="mt-1 text-sm text-muted">
-                  {fileSize(backup.file_size)} · {dateTime(backup.created_at)}
+                  Queue a database backup now.
                 </p>
               </div>
-              <div class="flex gap-2">
-                <StatusBadge value={backup.status} /><Button
-                  size="sm"
-                  variant="secondary"
-                  on:click={() => downloadBackup(backup)}
-                  id={`btn-download-backup-${backup.id}`}
-                  ><Download size={14} />Download</Button
-                >
+              <Button on:click={triggerBackup} id="btn-backup-now">
+                <Database size={16} />Create backup
+              </Button>
+            </div>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <FileUpload
+              accept=".zip"
+              maxSizeMb={250}
+              label="Restore backup archive"
+              onSelect={(file) => (restoreFile = file)}
+            />
+            <div class="mt-3 flex justify-end">
+              <Button
+                variant="danger"
+                disabled={!restoreFile}
+                on:click={() => (restoreConfirmOpen = true)}
+                id="btn-restore-backup"
+              >
+                <Upload size={16} />Restore
+              </Button>
+            </div>
+          </div>
+        </div>
+        {#if backups.length === 0}
+          <EmptyState title="No backups" />
+        {:else}
+          <div class="space-y-3">
+            {#each backups as backup}
+              <div
+                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
+              >
+                <div>
+                  <p class="font-semibold">{backup.filename}</p>
+                  <p class="mt-1 text-sm text-muted">
+                    {titleCase(backup.backup_type)} - {fileSize(
+                      backup.file_size
+                    )} - {dateTime(backup.created_at)}
+                  </p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <StatusBadge value={backup.status} />
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    on:click={() => downloadBackup(backup)}
+                    id={`btn-download-backup-${backup.id}`}
+                  >
+                    <Download size={14} />Download
+                  </Button>
+                </div>
               </div>
-            </div>{/each}
+            {/each}
+          </div>
+        {/if}
+      {:else if activeTab === 'maintenance'}
+        <div class="grid gap-4 lg:grid-cols-3">
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">App version</p>
+            <p class="mt-2 font-mono text-lg font-semibold text-primary">
+              {systemInfo.app_version ?? 'n/a'}
+            </p>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">Python</p>
+            <p class="mt-2 font-mono text-lg font-semibold text-body">
+              {systemInfo.python_version ?? 'n/a'}
+            </p>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">Uptime</p>
+            <p class="mt-2 text-lg font-semibold text-body">
+              {formatSeconds(systemInfo.uptime_seconds)}
+            </p>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">RAM</p>
+            <p class="mt-2 text-lg font-semibold text-body">
+              {pct(systemInfo.ram_usage_pct)}
+            </p>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">Database size</p>
+            <p class="mt-2 text-lg font-semibold text-body">
+              {number(systemInfo.db_size_mb)} MB
+            </p>
+          </div>
+          <div class="rounded-lg border border-border bg-elevated p-4">
+            <p class="label">OS</p>
+            <p class="mt-2 text-sm font-semibold text-body">
+              {systemInfo.os_version ?? 'n/a'}
+            </p>
+          </div>
+        </div>
+        <div class="mt-5 flex flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            on:click={() => (maintenanceConfirm = 'clear-cache')}
+            id="btn-clear-cache"
+          >
+            Clear cache
+          </Button>
+          <Button
+            variant="secondary"
+            on:click={() => (maintenanceConfirm = 'optimize-db')}
+            id="btn-optimize-db"
+          >
+            Optimize DB
+          </Button>
+          <Button on:click={exportAll} id="btn-export-all">
+            <Download size={16} />Export all data
+          </Button>
+        </div>
+      {:else}
+        <div class="grid gap-5 lg:grid-cols-[1fr_320px]">
+          <div class="space-y-4">
+            <label>
+              <span class="form-label">Display name</span>
+              <input
+                class="input-field"
+                bind:value={appearance.institution_display_name}
+              />
+            </label>
+            <label>
+              <span class="form-label">Theme</span>
+              <select class="select-field" bind:value={appearance.theme}>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </label>
+            <label>
+              <span class="form-label">Primary color</span>
+              <input
+                class="input-field"
+                bind:value={appearance.primary_color}
+              />
+            </label>
+            <div
+              class="rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm text-primary"
+            >
+              The active dashboard theme is fixed to the Binance reference
+              colors; saved appearance values are kept for branded exports and
+              login surfaces.
+            </div>
+            <div class="flex justify-end">
+              <Button
+                on:click={saveAppearance}
+                disabled={saving}
+                id="btn-save-appearance"
+              >
+                <Save size={16} />Save appearance
+              </Button>
+            </div>
+          </div>
+          <div class="space-y-4">
+            <FileUpload
+              accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
+              maxSizeMb={5}
+              label="Upload institution logo"
+              onSelect={(file) => (logoFile = file)}
+            />
+            {#if appearance.logo_path}
+              <img
+                class="h-24 w-24 rounded-lg border border-border bg-elevated object-contain p-2"
+                src={appearance.logo_path}
+                alt="Institution logo"
+              />
+            {/if}
+            <Button
+              variant="secondary"
+              on:click={uploadLogo}
+              disabled={!logoFile}
+              id="btn-upload-logo"
+            >
+              <Upload size={16} />Upload logo
+            </Button>
+          </div>
         </div>
       {/if}
-    {:else if activeSection === 'appearance'}
-      <div class="grid gap-3 md:grid-cols-2">
-        <label
-          ><span class="label">Theme</span><select
-            class="select-field mt-2 w-full"
-            bind:value={appearance.theme}
-            id="btn-toggle-theme"
-            ><option>light</option><option>dark</option></select
-          ></label
-        ><label
-          ><span class="label">Primary color</span><input
-            class="input-field mt-2 w-full"
-            type="color"
-            bind:value={appearance.primary_color}
-          /></label
-        ><label
-          ><span class="label">Display name</span><input
-            class="input-field mt-2 w-full"
-            bind:value={appearance.institution_display_name}
-          /></label
-        ><label
-          ><span class="label">Logo</span><input
-            class="input-field mt-2 w-full py-2"
-            type="file"
-            accept="image/*"
-            on:change={(event) =>
-              (logoFile = event.currentTarget.files?.[0] ?? null)}
-          /></label
-        >
-      </div>
-      {#if appearance.logo_path}<img
-          class="mt-4 h-20 rounded-md border border-border object-contain p-2"
-          src={appearance.logo_path}
-          alt="Institution logo"
-        />{/if}
-      <div class="mt-4 flex justify-end gap-2">
-        <Button variant="secondary" on:click={uploadLogo} id="btn-upload-logo"
-          ><Upload size={16} />Upload logo</Button
-        ><Button on:click={saveAppearance}>Save appearance</Button>
-      </div>
-    {:else}
-      <div class="grid gap-4 md:grid-cols-2">
-        <Button variant="secondary" on:click={clearCache} id="btn-clear-cache"
-          >Clear cache</Button
-        ><Button variant="secondary" on:click={optimizeDb} id="btn-optimize-db"
-          >Optimize DB</Button
-        ><Button on:click={exportAll} id="btn-export-all"
-          ><Download size={16} />Export all data</Button
-        >
-      </div>
-      <pre
-        class="mt-5 max-h-96 overflow-auto rounded-lg bg-canvas p-4 text-xs text-body">{JSON.stringify(
-          systemInfo,
-          null,
-          2
-        )}</pre>
-    {/if}
-  </Card>
-</div>
+    </Card>
+  </div>
+{/if}
 
-<Modal open={userOpen} title="Create user" on:close={() => (userOpen = false)}>
-  <form class="space-y-3" on:submit|preventDefault={createUser}>
-    <label
-      ><span class="label">Name</span><input
-        class="input-field mt-2 w-full"
-        bind:value={userForm.name}
-        required
-      /></label
-    >
-    <label
-      ><span class="label">Email</span><input
-        class="input-field mt-2 w-full"
+<Modal
+  open={userModalOpen}
+  title={editingUser ? 'Edit user' : 'Create user'}
+  on:close={() => (userModalOpen = false)}
+>
+  <form class="space-y-4" on:submit|preventDefault={saveUser}>
+    <label>
+      <span class="form-label">Name</span>
+      <input class="input-field" bind:value={userForm.name} required />
+    </label>
+    <label>
+      <span class="form-label">Email</span>
+      <input
+        class="input-field"
         type="email"
         bind:value={userForm.email}
         required
-      /></label
-    >
-    <label
-      ><span class="label">Role</span><select
-        class="select-field mt-2 w-full"
-        bind:value={userForm.role}
-        ><option>super_admin</option><option>institution_admin</option><option
-          >mess_admin</option
-        ><option>analytics_viewer</option><option>staff_operator</option
-        ></select
-      ></label
-    >
-    <label
-      ><span class="label">Password</span><input
-        class="input-field mt-2 w-full"
-        type="password"
-        bind:value={userForm.password}
-      /></label
-    >
+      />
+    </label>
+    <label>
+      <span class="form-label">Role</span>
+      <select class="select-field" bind:value={userForm.role}>
+        {#each roleOptions as role}
+          <option value={role}>{titleCase(role)}</option>
+        {/each}
+      </select>
+    </label>
+    {#if !editingUser}
+      <label>
+        <span class="form-label">Temporary password</span>
+        <input
+          class="input-field"
+          type="password"
+          bind:value={userForm.password}
+          placeholder="Leave blank to auto-generate"
+        />
+      </label>
+    {/if}
     <div class="flex justify-end gap-2">
       <Button
-        variant="secondary"
         type="button"
-        on:click={() => (userOpen = false)}>Cancel</Button
-      ><Button type="submit">Create user</Button>
+        variant="secondary"
+        on:click={() => (userModalOpen = false)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit" disabled={saving}>
+        {editingUser ? 'Save changes' : 'Create user'}
+      </Button>
     </div>
   </form>
 </Modal>
+
+<Modal
+  open={!!tempPassword}
+  title="Temporary password"
+  on:close={() => (tempPassword = '')}
+>
+  <div class="space-y-4">
+    <p class="text-sm text-muted">
+      Use this once and ask the user to rotate it after login.
+    </p>
+    <pre
+      class="rounded-lg bg-canvas p-4 font-mono text-sm text-primary">{tempPassword}</pre>
+    <div class="flex justify-end">
+      <Button on:click={() => (tempPassword = '')}>Done</Button>
+    </div>
+  </div>
+</Modal>
+
+<ConfirmDialog
+  open={!!deactivateTarget}
+  title="Deactivate user"
+  message={`Deactivate ${deactivateTarget?.email ?? 'this user'}? They will no longer be able to sign in.`}
+  confirmLabel="Deactivate"
+  danger
+  onCancel={() => (deactivateTarget = null)}
+  onConfirm={deactivateUser}
+/>
+
+<ConfirmDialog
+  open={!!resetPasswordTarget}
+  title="Reset password"
+  message={`Generate a temporary password for ${resetPasswordTarget?.email ?? 'this user'}?`}
+  confirmLabel="Reset password"
+  onCancel={() => (resetPasswordTarget = null)}
+  onConfirm={resetPassword}
+/>
+
+<ConfirmDialog
+  open={restoreConfirmOpen}
+  title="Restore backup"
+  message="Restoring a backup can overwrite current data and may restart the backend. Continue?"
+  confirmLabel="Restore"
+  danger
+  onCancel={() => (restoreConfirmOpen = false)}
+  onConfirm={restoreBackup}
+/>
+
+<ConfirmDialog
+  open={!!maintenanceConfirm}
+  title="Run maintenance"
+  message={maintenanceConfirm === 'optimize-db'
+    ? 'Optimize the database now?'
+    : 'Clear application cache now?'}
+  confirmLabel="Run"
+  onCancel={() => (maintenanceConfirm = null)}
+  onConfirm={runMaintenanceAction}
+/>

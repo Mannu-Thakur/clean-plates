@@ -21,7 +21,11 @@
   import ChartCard from '$lib/components/charts/ChartCard.svelte';
   import { grams, number, pct, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
-  import { STUDENT_STATUSES, MEAL_TYPES, PERIOD_OPTIONS } from '$lib/utils/constants';
+  import {
+    STUDENT_STATUSES,
+    MEAL_TYPES,
+    PERIOD_OPTIONS
+  } from '$lib/utils/constants';
 
   type AnalyticsTab =
     | 'trends'
@@ -163,10 +167,7 @@
 
   $: filterRecord = filters as unknown as Record<string, unknown>;
   $: trendPoints = trendData.data ?? [];
-  $: maxHeat = Math.max(
-    1,
-    ...heatmap.map((point) => heatValue(point))
-  );
+  $: maxHeat = Math.max(1, ...heatmap.map((point) => heatValue(point)));
   $: totalStudents =
     sustainability.excellent_count +
     sustainability.good_count +
@@ -416,7 +417,10 @@
   </div>
 {:else if activeTab === 'trends'}
   <div class="mt-5 space-y-5">
-    <Card title="Trend cadence" description="Line chart can pivot between daily, weekly, and monthly views.">
+    <Card
+      title="Trend cadence"
+      description="Line chart can pivot between daily, weekly, and monthly views."
+    >
       <div class="flex flex-wrap gap-2">
         {#each ['daily', 'weekly', 'semester'] as cadence}
           <button
@@ -472,7 +476,9 @@
       {:else}
         <div class="overflow-auto">
           <div class="min-w-[920px]">
-            <div class="grid grid-cols-[84px_repeat(24,minmax(28px,1fr))] gap-1">
+            <div
+              class="grid grid-cols-[84px_repeat(24,minmax(28px,1fr))] gap-1"
+            >
               <div></div>
               {#each hours as hour}
                 <div class="text-center text-[10px] font-semibold text-muted">
@@ -480,7 +486,9 @@
                 </div>
               {/each}
               {#each weekdays as weekday}
-                <div class="flex h-8 items-center text-xs font-semibold text-muted">
+                <div
+                  class="flex h-8 items-center text-xs font-semibold text-muted"
+                >
                   {weekday.slice(0, 3)}
                 </div>
                 {#each hours as hour}
@@ -507,7 +515,8 @@
         <div class="rounded-md bg-elevated p-4">
           <p class="label">Peak hour</p>
           <p class="mt-2 text-2xl font-semibold text-body">
-            {peakSignals.peak_hour === null || peakSignals.peak_hour === undefined
+            {peakSignals.peak_hour === null ||
+            peakSignals.peak_hour === undefined
               ? 'None'
               : `${peakSignals.peak_hour}:00`}
           </p>

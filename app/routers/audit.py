@@ -24,6 +24,7 @@ AUDIT_READ_ROLES = ("super_admin", "institution_admin")
 async def list_events(
     user_id: UUID | None = Query(default=None),
     event_type: str | None = Query(default=None),
+    action: str | None = Query(default=None),
     resource_type: str | None = Query(default=None),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
@@ -39,6 +40,7 @@ async def list_events(
         db,
         user_id=str(user_id) if user_id else None,
         event_type=event_type,
+        action=action,
         resource_type=resource_type,
         date_from=date_from,
         date_to=date_to,
@@ -63,6 +65,7 @@ async def get_stats(
 async def get_timeline(
     user_id: UUID | None = Query(default=None),
     event_type: str | None = Query(default=None),
+    action: str | None = Query(default=None),
     resource_type: str | None = Query(default=None),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
@@ -74,6 +77,7 @@ async def get_timeline(
         db,
         user_id=str(user_id) if user_id else None,
         event_type=event_type,
+        action=action,
         resource_type=resource_type,
         date_from=date_from,
         date_to=date_to,
@@ -85,6 +89,7 @@ async def get_timeline(
 async def export_log(
     user_id: UUID | None = Query(default=None),
     event_type: str | None = Query(default=None),
+    action: str | None = Query(default=None),
     resource_type: str | None = Query(default=None),
     date_from: date | None = Query(default=None),
     date_to: date | None = Query(default=None),
@@ -100,6 +105,7 @@ async def export_log(
         current_user=current_user,
         user_id=str(user_id) if user_id else None,
         event_type=event_type,
+        action=action,
         resource_type=resource_type,
         date_from=date_from,
         date_to=date_to,

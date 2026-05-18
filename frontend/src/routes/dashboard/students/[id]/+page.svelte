@@ -313,7 +313,9 @@
         <div
           class="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-primary text-xl font-semibold text-ink"
         >
-          {(profile.mapping?.name ?? profile.device_id).slice(0, 2).toUpperCase()}
+          {(profile.mapping?.name ?? profile.device_id)
+            .slice(0, 2)
+            .toUpperCase()}
         </div>
         <div class="min-w-0">
           <h3 class="truncate text-xl font-semibold text-body">
@@ -363,7 +365,9 @@
       title="Improvement"
       value={pct(stats?.improvement_pct ?? improvement.current_improvement_pct)}
       helper={titleCase(improvement.direction ?? 'stable')}
-      tone={(stats?.improvement_pct ?? improvement.current_improvement_pct ?? 0) >= 0
+      tone={(stats?.improvement_pct ??
+        improvement.current_improvement_pct ??
+        0) >= 0
         ? 'good'
         : 'bad'}
     >
@@ -373,7 +377,7 @@
 
   <div class="mt-5">
     <Tabs
-      tabs={tabs}
+      {tabs}
       active={activeTab}
       onChange={(tab) => (activeTab = tab as ProfileTab)}
     />
@@ -392,7 +396,9 @@
         <div class="mt-4 grid grid-cols-2 gap-3">
           <div class="rounded-md bg-elevated p-3">
             <p class="label">Status</p>
-            <div class="mt-2"><StatusBadge value={profile.status} compact /></div>
+            <div class="mt-2">
+              <StatusBadge value={profile.status} compact />
+            </div>
           </div>
           <div class="rounded-md bg-elevated p-3">
             <p class="label">Most wasted</p>
@@ -583,10 +589,7 @@
       </select>
     </FormField>
     <FormField label="Reason" required>
-      <textarea
-        class="textarea-field"
-        bind:value={warningForm.reason}
-        required
+      <textarea class="textarea-field" bind:value={warningForm.reason} required
       ></textarea>
     </FormField>
     <label class="flex items-center gap-2 text-sm text-muted-strong">
@@ -623,10 +626,7 @@
       />
     </FormField>
     <FormField label="Reason" required>
-      <textarea
-        class="textarea-field"
-        bind:value={penaltyForm.reason}
-        required
+      <textarea class="textarea-field" bind:value={penaltyForm.reason} required
       ></textarea>
     </FormField>
     <label class="flex items-center gap-2 text-sm text-muted-strong">

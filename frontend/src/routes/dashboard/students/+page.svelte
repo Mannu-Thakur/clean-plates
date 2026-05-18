@@ -382,7 +382,11 @@
   description="Filter by supported server fields, search the visible page locally, and open full Phase 3 student profiles."
 >
   <svelte:fragment slot="actions">
-    <Button variant="secondary" on:click={loadStudents} id="btn-refresh-students">
+    <Button
+      variant="secondary"
+      on:click={loadStudents}
+      id="btn-refresh-students"
+    >
       <RefreshCw size={16} />
       Refresh
     </Button>
@@ -425,7 +429,11 @@
 </div>
 
 <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-  <StatCard title="Total" value={number(response.total)} helper="All matching students">
+  <StatCard
+    title="Total"
+    value={number(response.total)}
+    helper="All matching students"
+  >
     <svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment>
   </StatCard>
   <StatCard
@@ -452,7 +460,11 @@
   >
     <svelte:fragment slot="icon"><AlertTriangle size={19} /></svelte:fragment>
   </StatCard>
-  <StatCard title="Selected" value={number(selected.size)} helper="Bulk warning queue">
+  <StatCard
+    title="Selected"
+    value={number(selected.size)}
+    helper="Bulk warning queue"
+  >
     <svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment>
   </StatCard>
 </div>
@@ -674,7 +686,9 @@
 <Modal
   open={!!quickWarnStudent}
   title="Issue warning"
-  description={quickWarnStudent?.mapping?.name ?? quickWarnStudent?.device_id ?? ''}
+  description={quickWarnStudent?.mapping?.name ??
+    quickWarnStudent?.device_id ??
+    ''}
   on:close={() => (quickWarnStudent = null)}
 >
   <form class="space-y-3" on:submit|preventDefault={issueQuickWarning}>
@@ -686,10 +700,7 @@
       </select>
     </FormField>
     <FormField label="Reason" required>
-      <textarea
-        class="textarea-field"
-        bind:value={quickWarning.reason}
-        required
+      <textarea class="textarea-field" bind:value={quickWarning.reason} required
       ></textarea>
     </FormField>
     <label class="flex items-center gap-2 text-sm text-muted-strong">
@@ -724,10 +735,7 @@
       </select>
     </FormField>
     <FormField label="Reason" required>
-      <textarea
-        class="textarea-field"
-        bind:value={bulkWarning.reason}
-        required
+      <textarea class="textarea-field" bind:value={bulkWarning.reason} required
       ></textarea>
     </FormField>
     <label class="flex items-center gap-2 text-sm text-muted-strong">
