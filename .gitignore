@@ -14,6 +14,8 @@ venv/
 data/
 uploads/
 reports/
+!frontend/src/routes/dashboard/reports/
+!frontend/src/routes/dashboard/reports/+page.svelte
 backups/
 logs/
 frontend-dev*.log

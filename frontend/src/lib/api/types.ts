@@ -112,7 +112,9 @@ export interface DeviceHealthSnapshot {
   cpu_percent: number;
   ram_percent: number;
   disk_percent?: number | null;
+  storage_percent?: number | null;
   temperature?: number | null;
+  connectivity?: boolean;
 }
 
 export interface Student {
@@ -183,14 +185,60 @@ export interface NotificationItem {
   created_at: string;
 }
 
+export interface NotificationStats {
+  unread: number;
+  sent_today: number;
+  failed: number;
+  pending: number;
+}
+
+export interface NotificationDeliveryItem {
+  recipient_id: string;
+  recipient_email?: string | null;
+  channel: string;
+  status: string;
+  delivered_at?: string | null;
+  error?: string | null;
+}
+
+export interface NotificationDelivery {
+  notification_id: string;
+  total_recipients: number;
+  delivered: number;
+  failed: number;
+  pending: number;
+  deliveries: NotificationDeliveryItem[];
+}
+
+export interface NotificationPreference {
+  type: string;
+  dashboard: boolean;
+  email: boolean;
+}
+
 export interface ReportItem {
   id: string;
   type: string;
   format: string;
   status: string;
   file_size?: number | null;
+  generated_by?: string;
   generated_at?: string | null;
   created_at: string;
+}
+
+export interface ReportSchedule {
+  id: string;
+  report_type: string;
+  format: string;
+  frequency: string;
+  day_of_week?: string | null;
+  time_of_day: string;
+  email_recipients: string[];
+  auto_email: boolean;
+  active: boolean;
+  last_run?: string | null;
+  next_run?: string | null;
 }
 
 export interface RuleItem {

@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { Menu, PanelLeftClose, Power, Search } from '@lucide/svelte';
+  import { Bell, Menu, PanelLeftClose, Power, Search } from '@lucide/svelte';
+  import { api } from '$lib/api/client';
+  import type { NotificationStats } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
   import ToastHost from '$lib/components/ui/ToastHost.svelte';
@@ -13,8 +15,15 @@
   let collapsed = false;
   let mobileOpen = false;
   let query = '';
+  let unreadCount = 0;
 
   $: role = $auth.user?.role ?? '';
+  $: canUseNotifications = [
+    'super_admin',
+    'institution_admin',
+    'mess_admin'
+  ].includes(role);
+  $: unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   $: visibleNav = navItems.filter((item) => !role || item.roles.includes(role));
   $: activeTitle =
     navItems.find(
@@ -24,12 +33,51 @@
           item.href !== '/dashboard')
     )?.label ?? 'Dashboard';
 
-  onMount(async () => {
+  onMount(() => {
+    const handleNotificationRefresh = () => {
+      void loadUnreadCount();
+    };
+
+    window.addEventListener(
+      'cleanplates:notifications-refresh',
+      handleNotificationRefresh
+    );
+
+    void boot();
+
+    return () => {
+      window.removeEventListener(
+        'cleanplates:notifications-refresh',
+        handleNotificationRefresh
+      );
+    };
+  });
+
+  async function boot() {
     await initAuth();
     if (!$auth.user) {
       await goto(`/login?next=${encodeURIComponent($page.url.pathname)}`);
+      return;
     }
-  });
+    await loadUnreadCount();
+  }
+
+  async function loadUnreadCount() {
+    if (!canUseNotifications) {
+      unreadCount = 0;
+      return;
+    }
+    try {
+      const stats = await api.get<NotificationStats>('/notifications/stats');
+      unreadCount = stats.unread;
+    } catch {
+      unreadCount = 0;
+    }
+  }
+
+  async function openNotifications() {
+    await goto('/dashboard/notifications');
+  }
 
   async function handleLogout() {
     await logout();
@@ -155,6 +203,23 @@
             placeholder="Search current view"
           />
         </label>
+        {#if canUseNotifications}
+          <button
+            class="icon-btn relative"
+            type="button"
+            aria-label="Open notifications"
+            on:click={openNotifications}
+          >
+            <Bell size={18} />
+            {#if unreadCount > 0}
+              <span
+                class="absolute -right-1 -top-1 min-w-4 rounded-full bg-down px-1 text-[10px] font-bold leading-4 text-white"
+              >
+                {unreadLabel}
+              </span>
+            {/if}
+          </button>
+        {/if}
         <Button variant="secondary" size="sm" on:click={handleLogout}>
           <Power size={16} />
           <span class="hidden sm:inline">Logout</span>

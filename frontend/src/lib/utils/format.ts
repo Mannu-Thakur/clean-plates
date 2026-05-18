@@ -58,7 +58,11 @@ export function statusTone(value: string | boolean | null | undefined) {
       'delivered',
       'green',
       'resolved',
-      'connected'
+      'connected',
+      'ready',
+      'completed',
+      'complete',
+      'read'
     ].includes(normalized)
   ) {
     return 'good';
@@ -73,7 +77,8 @@ export function statusTone(value: string | boolean | null | undefined) {
       'medium',
       'level_1',
       'connecting',
-      'reconnecting'
+      'reconnecting',
+      'unread'
     ].includes(normalized)
   )
     return 'warn';
