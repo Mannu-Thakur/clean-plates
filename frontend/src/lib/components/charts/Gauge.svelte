@@ -3,9 +3,21 @@
   export let max = 100;
   export let label = '';
   export let unit = '';
+  export let tone: 'risk' | 'score' = 'risk';
 
   $: pct = Math.max(0, Math.min(100, (value / Math.max(max, 1)) * 100));
-  $: color = pct > 85 ? '#f6465d' : pct > 60 ? '#fcd535' : '#0ecb81';
+  $: color =
+    tone === 'score'
+      ? pct >= 80
+        ? '#0ecb81'
+        : pct >= 50
+          ? '#fcd535'
+          : '#f6465d'
+      : pct > 85
+        ? '#f6465d'
+        : pct > 60
+          ? '#fcd535'
+          : '#0ecb81';
   $: radius = 50;
   $: circumference = 2 * Math.PI * radius;
   $: offset = circumference - (pct / 100) * circumference;

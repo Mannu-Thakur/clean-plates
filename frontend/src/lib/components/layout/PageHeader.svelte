@@ -11,7 +11,7 @@
     {#if label}
       <p class="label">{label}</p>
     {/if}
-    <h2 class="mt-1 text-2xl font-semibold text-body">{title}</h2>
+    <h1 class="mt-1 text-2xl font-semibold text-body">{title}</h1>
     {#if description}
       <p class="mt-2 max-w-3xl text-sm leading-6 text-muted">{description}</p>
     {/if}

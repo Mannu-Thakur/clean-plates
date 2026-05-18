@@ -1,40 +1,55 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { page as pageStore } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { ArrowLeft, Bell, Download, Mail, ShieldAlert } from '@lucide/svelte';
+  import { page as pageStore } from '$app/stores';
+  import {
+    ArrowLeft,
+    Bell,
+    Download,
+    RefreshCw,
+    ShieldAlert,
+    TrendingDown
+  } from '@lucide/svelte';
   import { api } from '$lib/api/client';
-  import type { Paginated, Student, WasteEntry } from '$lib/api/types';
+  import type { Student } from '$lib/api/types';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import FormField from '$lib/components/ui/FormField.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
   import StatCard from '$lib/components/ui/StatCard.svelte';
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+  import Tabs from '$lib/components/ui/Tabs.svelte';
   import ChartCard from '$lib/components/charts/ChartCard.svelte';
+  import Gauge from '$lib/components/charts/Gauge.svelte';
   import { dateTime, grams, number, pct, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
 
-  const id = $pageStore.params.id;
-  const tabs = ['overview', 'history', 'warnings'] as const;
-
-  let loading = true;
-  let error = '';
-  let activeTab: 'overview' | 'history' | 'warnings' = 'overview';
-  let period = '30d';
-  let profile: Student | null = null;
-  let stats: Record<string, unknown> | null = null;
-  let timeline: {
+  type ProfileTab = 'overview' | 'waste' | 'warnings';
+  type WasteStats = {
+    student_id: string;
+    period: string;
+    total_waste_grams: number;
+    avg_waste_grams: number;
+    entry_count: number;
+    most_wasted_food?: string | null;
+    peak_meal?: string | null;
+    sustainability_score: number;
+    improvement_pct?: number | null;
+  };
+  type Timeline = {
+    student_id?: string;
+    period?: string;
     threshold_grams?: number;
     data: Array<{ date: string; total_grams: number; entry_count: number }>;
-  } = { data: [] };
-  let foodBreakdown: {
+  };
+  type FoodBreakdown = {
+    student_id?: string;
     data: Array<{ food_name: string; total_grams: number; percentage: number }>;
-  } = { data: [] };
-  let mealPattern: {
-    data: Array<{ meal_type: string; avg_grams: number; entry_count: number }>;
-  } = { data: [] };
-  let improvement: {
+  };
+  type Improvement = {
+    student_id?: string;
     current_improvement_pct?: number;
     direction?: string;
     data: Array<{
@@ -42,75 +57,134 @@
       avg_grams: number;
       improvement_pct: number;
     }>;
-  } = { data: [] };
-  let history: Paginated<WasteEntry> = {
-    items: [],
-    total: 0,
-    page: 1,
-    size: 20,
-    pages: 1
   };
-  let warningLog: {
-    warnings: Array<Record<string, unknown>>;
-    penalties: Array<Record<string, unknown>>;
-  } = { warnings: [], penalties: [] };
-  let historyPage = 1;
+  type WarningItem = {
+    id: string;
+    level: string;
+    reason: string;
+    status: string;
+    created_at: string;
+    email_sent?: boolean;
+  };
+  type PenaltyItem = {
+    id: string;
+    points: number;
+    reason: string;
+    status: string;
+    created_at: string;
+    email_sent?: boolean;
+  };
+  type WarningLog = {
+    warnings: WarningItem[];
+    penalties: PenaltyItem[];
+  };
+  type TimelineEvent = {
+    id: string;
+    type: 'warning' | 'penalty';
+    label: string;
+    reason: string;
+    status: string;
+    created_at: string;
+    email_sent?: boolean;
+  };
+
+  const id = $pageStore.params.id;
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: TrendingDown },
+    { id: 'waste', label: 'Waste History', icon: TrendingDown },
+    { id: 'warnings', label: 'Warning Timeline', icon: ShieldAlert }
+  ];
+
+  let loading = true;
+  let error = '';
+  let warningError = '';
+  let activeTab: ProfileTab = 'overview';
+  let period = '30d';
+  let profile: Student | null = null;
+  let stats: WasteStats | null = null;
+  let timeline: Timeline = { data: [] };
+  let foodBreakdown: FoodBreakdown = { data: [] };
+  let improvement: Improvement = { data: [] };
+  let warningLog: WarningLog = { warnings: [], penalties: [] };
   let warningOpen = false;
   let penaltyOpen = false;
-  let notifyOpen = false;
   let warningForm = { level: 'level_1', reason: '', send_email: true };
   let penaltyForm = { points: 5, reason: '', send_email: true };
-  let notificationForm = { subject: '', body: '', channel: 'dashboard' };
+
+  $: studentTitle =
+    profile?.mapping?.name ?? profile?.device_id ?? 'Student profile';
+  $: studentDescription = profile?.mapping
+    ? `${profile.mapping.roll_number} / ${profile.mapping.branch} / Year ${profile.mapping.year}`
+    : profile
+      ? `Unmapped device ${profile.device_id}`
+      : 'Loading student profile';
+  $: sustainabilityScore = Number(
+    stats?.sustainability_score ?? profile?.sustainability_score ?? 0
+  );
+  $: warningEvents = buildWarningEvents(warningLog);
+
+  function buildWarningEvents(log: WarningLog): TimelineEvent[] {
+    return [
+      ...log.warnings.map((warning) => ({
+        id: warning.id,
+        type: 'warning' as const,
+        label: titleCase(warning.level),
+        reason: warning.reason,
+        status: warning.status,
+        created_at: warning.created_at,
+        email_sent: warning.email_sent
+      })),
+      ...log.penalties.map((penalty) => ({
+        id: penalty.id,
+        type: 'penalty' as const,
+        label: `${number(penalty.points)} points`,
+        reason: penalty.reason,
+        status: penalty.status,
+        created_at: penalty.created_at,
+        email_sent: penalty.email_sent
+      }))
+    ].sort(
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  }
 
   async function loadProfile() {
     loading = true;
     error = '';
+    warningError = '';
     try {
       const [
         profileData,
         statsData,
         timelineData,
         foodData,
-        mealData,
-        improvementData,
-        historyData,
-        warningData
+        warningData,
+        improvementData
       ] = await Promise.all([
         api.get<Student>(`/students/${id}`),
-        api.get<Record<string, unknown>>(`/students/${id}/stats`, { period }),
-        api.get<typeof timeline>(`/students/${id}/timeline`, { period }),
-        api.get<typeof foodBreakdown>(`/students/${id}/food-breakdown`, {
-          period
+        api.get<WasteStats>(`/students/${id}/stats`, { period }),
+        api.get<Timeline>(`/students/${id}/timeline`, { period }),
+        api.get<FoodBreakdown>(`/students/${id}/food-breakdown`, { period }),
+        api.get<WarningLog>(`/students/${id}/warnings`).catch((err) => {
+          warningError =
+            err instanceof Error ? err.message : 'Could not load warnings';
+          return { warnings: [], penalties: [] };
         }),
-        api.get<typeof mealPattern>(`/students/${id}/meal-pattern`, { period }),
-        api.get<typeof improvement>(`/students/${id}/improvement`),
-        api.get<Paginated<WasteEntry>>(`/students/${id}/history`, {
-          page: historyPage,
-          size: 20
-        }),
-        api.get<typeof warningLog>(`/students/${id}/warnings`)
+        api.get<Improvement>(`/students/${id}/improvement`)
       ]);
       profile = profileData;
       stats = statsData;
       timeline = timelineData;
       foodBreakdown = foodData;
-      mealPattern = mealData;
-      improvement = improvementData;
-      history = historyData;
       warningLog = warningData;
+      improvement = improvementData;
     } catch (err) {
       error =
         err instanceof Error ? err.message : 'Could not load student profile';
     } finally {
       loading = false;
     }
-  }
-
-  async function loadHistory() {
-    history = await api.get<Paginated<WasteEntry>>(`/students/${id}/history`, {
-      page: historyPage,
-      size: 20
-    });
   }
 
   async function issueWarning() {
@@ -143,27 +217,6 @@
     }
   }
 
-  async function sendNotification() {
-    try {
-      await api.post('/notifications', {
-        type: 'custom',
-        channel: notificationForm.channel,
-        subject: notificationForm.subject,
-        body: notificationForm.body,
-        recipient_type: 'individual',
-        recipient_ids: [id]
-      });
-      notify('Notification queued.', 'success');
-      notifyOpen = false;
-      notificationForm = { subject: '', body: '', channel: 'dashboard' };
-    } catch (err) {
-      notify(
-        err instanceof Error ? err.message : 'Could not send notification.',
-        'error'
-      );
-    }
-  }
-
   async function exportProfile() {
     try {
       await api.post('/reports/generate', {
@@ -185,150 +238,193 @@
 </script>
 
 <svelte:head>
-  <title>Student Intelligence | CleanPlates</title>
+  <title>{studentTitle} | CleanPlates</title>
 </svelte:head>
 
-<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-  <div class="flex min-w-0 items-center gap-3">
-    <Button
-      variant="secondary"
-      on:click={() => goto('/dashboard/students')}
-      id="btn-back-students"><ArrowLeft size={16} /></Button
-    >
-    <div class="min-w-0">
-      <p class="label">Student intelligence</p>
-      <h2 class="mt-1 truncate text-2xl font-semibold text-body">
-        {profile?.mapping?.name ?? profile?.device_id ?? 'Student profile'}
-      </h2>
-    </div>
-  </div>
-  <div class="flex flex-wrap gap-2">
+<div class="mb-4">
+  <Button
+    variant="secondary"
+    on:click={() => goto('/dashboard/students')}
+    id="btn-back-students"
+  >
+    <ArrowLeft size={16} />
+    Students
+  </Button>
+</div>
+
+<PageHeader
+  label="Student profile"
+  title={studentTitle}
+  description={studentDescription}
+>
+  <svelte:fragment slot="actions">
     <select
       class="select-field"
       bind:value={period}
       on:change={loadProfile}
       id="select-student-period"
     >
-      <option value="7d">7d</option><option value="30d">30d</option><option
-        value="semester">Semester</option
-      ><option value="all">All</option>
+      <option value="7d">7 days</option>
+      <option value="30d">30 days</option>
+      <option value="semester">Semester</option>
+      <option value="all">All</option>
     </select>
+    <Button variant="secondary" on:click={loadProfile} id="btn-refresh-profile">
+      <RefreshCw size={16} />
+      Refresh
+    </Button>
     <Button
       variant="secondary"
       on:click={() => (warningOpen = true)}
-      id="btn-issue-warning"><ShieldAlert size={16} />Warning</Button
+      id="btn-issue-warning"
     >
+      <ShieldAlert size={16} />
+      Warning
+    </Button>
     <Button
       variant="secondary"
       on:click={() => (penaltyOpen = true)}
-      id="btn-issue-penalty"><Bell size={16} />Penalty</Button
+      id="btn-issue-penalty"
     >
-    <Button
-      variant="secondary"
-      on:click={() => (notifyOpen = true)}
-      id="btn-send-notification"><Mail size={16} />Notify</Button
-    >
-    <Button on:click={exportProfile} id="btn-export-profile"
-      ><Download size={16} />Export</Button
-    >
-  </div>
-</div>
+      <Bell size={16} />
+      Penalty
+    </Button>
+    <Button on:click={exportProfile} id="btn-export-profile">
+      <Download size={16} />
+      Export
+    </Button>
+  </svelte:fragment>
+</PageHeader>
 
 {#if error}
-  <Card title="Student unavailable" description={error}
-    ><Button on:click={loadProfile}>Retry</Button></Card
-  >
+  <Card title="Student unavailable" description={error}>
+    <Button on:click={loadProfile}>Retry</Button>
+  </Card>
 {:else if loading && !profile}
-  <div class="card h-96 animate-pulse bg-elevated"></div>
+  <div class="grid gap-5 xl:grid-cols-2">
+    <div class="skeleton h-56"></div>
+    <div class="skeleton h-56"></div>
+  </div>
 {:else if profile}
   <Card>
     <div class="flex flex-wrap items-center justify-between gap-4">
       <div class="flex min-w-0 items-center gap-4">
         <div
-          class="grid h-16 w-16 place-items-center rounded-lg bg-primary text-xl font-semibold text-white"
+          class="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-primary text-xl font-semibold text-ink"
         >
-          {(profile.mapping?.name ?? profile.device_id)
-            .slice(0, 2)
-            .toUpperCase()}
+          {(profile.mapping?.name ?? profile.device_id).slice(0, 2).toUpperCase()}
         </div>
         <div class="min-w-0">
-          <h3 class="truncate text-xl font-semibold">
+          <h3 class="truncate text-xl font-semibold text-body">
             {profile.mapping?.name ?? 'Unmapped student'}
           </h3>
-          <p class="text-sm text-muted">
+          <p class="mt-1 text-sm text-muted">
             {profile.mapping?.roll_number ?? profile.device_id}
           </p>
           <p class="mt-1 text-sm text-muted">
             {profile.mapping
-              ? `${profile.mapping.branch} · Year ${profile.mapping.year} · ${profile.mapping.hostel ?? 'No hostel'}`
-              : 'Map this card to unlock identity fields.'}
+              ? `${profile.mapping.hostel ?? 'No hostel'} / ${profile.mapping.room_number ?? 'No room'}`
+              : 'Map this device to unlock identity fields.'}
           </p>
         </div>
       </div>
-      <StatusBadge value={profile.status} />
+      <div class="flex flex-wrap items-center gap-2">
+        <StatusBadge value={profile.status} />
+        <StatusBadge value={profile.is_active ? 'active' : 'inactive'} />
+      </div>
     </div>
   </Card>
 
   <div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
     <StatCard
-      title="Avg Waste"
-      value={grams(Number(stats?.avg_waste_grams ?? profile.avg_waste_grams))}
-      helper={`${number(stats?.entry_count as number)} entries`}
+      title="Total Waste"
+      value={grams(stats?.total_waste_grams)}
+      helper={`${number(stats?.entry_count)} entries`}
     >
-      <svelte:fragment slot="icon"><ShieldAlert size={19} /></svelte:fragment>
+      <svelte:fragment slot="icon"><TrendingDown size={19} /></svelte:fragment>
     </StatCard>
     <StatCard
-      title="Sustainability"
-      value={number(profile.sustainability_score)}
-      helper="Score"
+      title="Avg Waste"
+      value={grams(stats?.avg_waste_grams ?? profile.avg_waste_grams)}
+      helper={`Peak meal ${titleCase(stats?.peak_meal ?? 'none')}`}
     >
-      <svelte:fragment slot="icon"><ShieldAlert size={19} /></svelte:fragment>
+      <svelte:fragment slot="icon"><TrendingDown size={19} /></svelte:fragment>
     </StatCard>
     <StatCard
       title="Warnings"
       value={number(profile.warning_count)}
-      helper="Active warnings"
+      helper="Active warning count"
       tone="warn"
     >
       <svelte:fragment slot="icon"><ShieldAlert size={19} /></svelte:fragment>
     </StatCard>
     <StatCard
-      title="Penalties"
-      value={number(profile.penalty_count)}
-      helper={`Improvement ${pct(improvement.current_improvement_pct)}`}
-      tone="bad"
+      title="Improvement"
+      value={pct(stats?.improvement_pct ?? improvement.current_improvement_pct)}
+      helper={titleCase(improvement.direction ?? 'stable')}
+      tone={(stats?.improvement_pct ?? improvement.current_improvement_pct ?? 0) >= 0
+        ? 'good'
+        : 'bad'}
     >
-      <svelte:fragment slot="icon"><ShieldAlert size={19} /></svelte:fragment>
+      <svelte:fragment slot="icon"><TrendingDown size={19} /></svelte:fragment>
     </StatCard>
   </div>
 
-  <div class="mt-5 flex flex-wrap gap-2">
-    {#each tabs as tab}
-      <button
-        class={`rounded-md px-4 py-2 text-sm font-semibold ${activeTab === tab ? 'bg-primary text-ink' : 'bg-card text-muted hover:text-body'}`}
-        on:click={() => (activeTab = tab)}
-        id={`tab-${tab}`}>{titleCase(tab)}</button
-      >
-    {/each}
+  <div class="mt-5">
+    <Tabs
+      tabs={tabs}
+      active={activeTab}
+      onChange={(tab) => (activeTab = tab as ProfileTab)}
+    />
   </div>
 
   {#if activeTab === 'overview'}
-    <div class="mt-5 grid gap-5 xl:grid-cols-2">
+    <div class="mt-5 grid gap-5 xl:grid-cols-[0.75fr_1.25fr]">
+      <Card title="Sustainability score">
+        <Gauge
+          value={sustainabilityScore}
+          max={100}
+          unit="score"
+          label="Higher score means lower sustained waste"
+          tone="score"
+        />
+        <div class="mt-4 grid grid-cols-2 gap-3">
+          <div class="rounded-md bg-elevated p-3">
+            <p class="label">Status</p>
+            <div class="mt-2"><StatusBadge value={profile.status} compact /></div>
+          </div>
+          <div class="rounded-md bg-elevated p-3">
+            <p class="label">Most wasted</p>
+            <p class="mt-2 truncate text-sm font-semibold text-body">
+              {stats?.most_wasted_food ?? 'None'}
+            </p>
+          </div>
+        </div>
+      </Card>
+
       <ChartCard
-        title="Waste Timeline"
+        title="Waste History"
+        description="Daily total waste for the selected period."
         chartType="line"
-        labels={timeline.data.map((point) => point.date)}
+        expandable
+        labels={timeline.data.map((point) => String(point.date))}
         datasets={[
           {
             label: 'Waste',
             data: timeline.data.map((point) => point.total_grams),
             fill: true
+          },
+          {
+            label: 'Threshold',
+            data: timeline.data.map(() => Number(timeline.threshold_grams ?? 0))
           }
         ]}
       />
+
       <ChartCard
         title="Food Breakdown"
         chartType="doughnut"
+        expandable
         labels={foodBreakdown.data.map((item) => item.food_name)}
         datasets={[
           {
@@ -337,22 +433,17 @@
           }
         ]}
       />
+
       <ChartCard
-        title="Meal Pattern"
-        chartType="bar"
-        labels={mealPattern.data.map((item) => titleCase(item.meal_type))}
-        datasets={[
-          {
-            label: 'Avg grams',
-            data: mealPattern.data.map((item) => item.avg_grams)
-          }
-        ]}
-      />
-      <ChartCard
-        title="Improvement Tracker"
+        title="Improvement Trend"
         chartType="line"
+        expandable
         labels={improvement.data.map((item) => item.week_label)}
         datasets={[
+          {
+            label: 'Average grams',
+            data: improvement.data.map((item) => item.avg_grams)
+          },
           {
             label: 'Improvement %',
             data: improvement.data.map((item) => item.improvement_pct)
@@ -360,96 +451,117 @@
         ]}
       />
     </div>
-  {:else if activeTab === 'history'}
-    <Card class="mt-5" title="Waste history">
-      {#if history.items.length === 0}
-        <EmptyState title="No history" />
-      {:else}
-        <div class="overflow-auto">
-          <table>
-            <thead class="bg-elevated"
-              ><tr
-                ><th class="th">Time</th><th class="th">Meal</th><th class="th"
-                  >Weight</th
-                ><th class="th">Food</th><th class="th">Severity</th></tr
-              ></thead
-            >
-            <tbody>
-              {#each history.items as entry}
-                <tr
-                  ><td class="td">{dateTime(entry.timestamp)}</td><td class="td"
-                    >{titleCase(entry.meal_type)}</td
-                  ><td class="td">{grams(entry.weight_grams)}</td><td class="td"
-                    >{entry.food_items?.map((item) => item.name).join(', ')}</td
-                  ><td class="td"
-                    ><StatusBadge value={entry.severity} compact /></td
-                  ></tr
-                >
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-4 flex justify-end gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={historyPage <= 1}
-            on:click={async () => {
-              historyPage -= 1;
-              await loadHistory();
-            }}>Previous</Button
-          >
-          <Button
-            size="sm"
-            variant="secondary"
-            disabled={historyPage >= history.pages}
-            on:click={async () => {
-              historyPage += 1;
-              await loadHistory();
-            }}>Next</Button
-          >
-        </div>
-      {/if}
-    </Card>
-  {:else}
-    <div class="mt-5 grid gap-5 xl:grid-cols-2">
-      <Card title="Warnings">
-        {#if warningLog.warnings.length === 0}<EmptyState />{:else}
+  {:else if activeTab === 'waste'}
+    <div class="mt-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+      <ChartCard
+        title="Waste History"
+        description="Entry counts are represented by the second series."
+        chartType="bar"
+        expandable
+        labels={timeline.data.map((point) => String(point.date))}
+        datasets={[
+          {
+            label: 'Waste',
+            data: timeline.data.map((point) => point.total_grams)
+          },
+          {
+            label: 'Entries',
+            data: timeline.data.map((point) => point.entry_count)
+          }
+        ]}
+      />
+
+      <Card title="Food breakdown">
+        {#if foodBreakdown.data.length === 0}
+          <EmptyState title="No food data" />
+        {:else}
           <div class="space-y-3">
-            {#each warningLog.warnings as warning}<div
-                class="rounded-lg border border-border p-3"
-              >
-                <div class="flex justify-between gap-3">
-                  <p class="font-semibold">{warning.reason}</p>
-                  <StatusBadge value={String(warning.status)} compact />
+            {#each foodBreakdown.data as item}
+              <div class="rounded-lg border border-border p-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="font-semibold text-body">{item.food_name}</p>
+                  <span class="font-mono text-sm text-primary">
+                    {grams(item.total_grams)}
+                  </span>
+                </div>
+                <div class="mt-2 h-2 rounded-full bg-elevated">
+                  <div
+                    class="h-full rounded-full bg-primary"
+                    style={`width:${Math.min(100, Number(item.percentage ?? 0))}%`}
+                  ></div>
                 </div>
                 <p class="mt-1 text-xs text-muted">
-                  {titleCase(String(warning.level))} · {dateTime(
-                    String(warning.created_at)
-                  )}
+                  {pct(item.percentage)} of this student's waste
                 </p>
-              </div>{/each}
+              </div>
+            {/each}
           </div>
         {/if}
       </Card>
-      <Card title="Penalties">
-        {#if warningLog.penalties.length === 0}<EmptyState />{:else}
+    </div>
+  {:else}
+    <div class="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+      <Card title="Warning timeline" description={warningError}>
+        {#if warningEvents.length === 0}
+          <EmptyState
+            title="No warnings"
+            message={warningError || 'Warnings and penalties will appear here.'}
+          />
+        {:else}
           <div class="space-y-3">
-            {#each warningLog.penalties as penalty}<div
-                class="rounded-lg border border-border p-3"
-              >
-                <div class="flex justify-between gap-3">
-                  <p class="font-semibold">{penalty.reason}</p>
-                  <StatusBadge value={String(penalty.status)} compact />
+            {#each warningEvents as event}
+              <div class="rounded-lg border border-border p-3">
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span
+                        class={event.type === 'penalty'
+                          ? 'badge-down'
+                          : 'badge-primary'}
+                      >
+                        {titleCase(event.type)}
+                      </span>
+                      <span class="text-sm font-semibold text-body">
+                        {event.label}
+                      </span>
+                    </div>
+                    <p class="mt-2 text-sm text-muted">{event.reason}</p>
+                    <p class="mt-1 text-xs text-muted">
+                      {dateTime(event.created_at)}
+                      {event.email_sent ? ' / email sent' : ''}
+                    </p>
+                  </div>
+                  <StatusBadge value={event.status} compact />
                 </div>
-                <p class="mt-1 text-xs text-muted">
-                  {number(penalty.points as number)} points · {dateTime(
-                    String(penalty.created_at)
-                  )}
-                </p>
-              </div>{/each}
+              </div>
+            {/each}
           </div>
         {/if}
+      </Card>
+
+      <Card title="Warning summary">
+        <div class="grid gap-3">
+          <div class="rounded-md bg-elevated p-4">
+            <p class="label">Warnings</p>
+            <p class="mt-2 text-3xl font-semibold text-primary">
+              {number(warningLog.warnings.length)}
+            </p>
+          </div>
+          <div class="rounded-md bg-elevated p-4">
+            <p class="label">Penalties</p>
+            <p class="mt-2 text-3xl font-semibold text-down">
+              {number(warningLog.penalties.length)}
+            </p>
+          </div>
+          <div class="rounded-md bg-elevated p-4">
+            <p class="label">Profile counters</p>
+            <p class="mt-2 text-sm text-body">
+              {number(profile.warning_count)} active warnings / {number(
+                profile.penalty_count
+              )} active penalties
+            </p>
+          </div>
+        </div>
       </Card>
     </div>
   {/if}
@@ -458,34 +570,37 @@
 <Modal
   open={warningOpen}
   title="Issue warning"
+  description={studentTitle}
   on:close={() => (warningOpen = false)}
 >
   <form class="space-y-3" on:submit|preventDefault={issueWarning}>
-    <label
-      ><span class="label">Level</span><select
-        class="select-field mt-2 w-full"
-        bind:value={warningForm.level}
-        ><option value="level_1">Level 1</option><option value="level_2"
-          >Level 2</option
-        ><option value="level_3">Level 3</option></select
-      ></label
-    >
-    <label
-      ><span class="label">Reason</span><textarea
-        class="textarea-field mt-2 min-h-28 w-full py-3"
+    <FormField label="Level" required>
+      <select class="select-field" bind:value={warningForm.level}>
+        <option value="level_1">Level 1</option>
+        <option value="level_2">Level 2</option>
+        <option value="level_3">Level 3</option>
+      </select>
+    </FormField>
+    <FormField label="Reason" required>
+      <textarea
+        class="textarea-field"
         bind:value={warningForm.reason}
         required
-      ></textarea></label
-    >
-    <label class="flex items-center gap-2 text-sm"
-      ><input type="checkbox" bind:checked={warningForm.send_email} /> Send email</label
-    >
+      ></textarea>
+    </FormField>
+    <label class="flex items-center gap-2 text-sm text-muted-strong">
+      <input type="checkbox" bind:checked={warningForm.send_email} />
+      Send email
+    </label>
     <div class="flex justify-end gap-2">
       <Button
-        variant="secondary"
         type="button"
-        on:click={() => (warningOpen = false)}>Cancel</Button
-      ><Button type="submit">Issue warning</Button>
+        variant="secondary"
+        on:click={() => (warningOpen = false)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit">Issue warning</Button>
     </div>
   </form>
 </Modal>
@@ -493,73 +608,39 @@
 <Modal
   open={penaltyOpen}
   title="Apply penalty"
+  description={studentTitle}
   on:close={() => (penaltyOpen = false)}
 >
   <form class="space-y-3" on:submit|preventDefault={issuePenalty}>
-    <label
-      ><span class="label">Points</span><input
-        class="input-field mt-2 w-full"
+    <FormField label="Points" required>
+      <input
+        class="input-field"
         type="number"
         min="1"
         max="100"
         bind:value={penaltyForm.points}
-      /></label
-    >
-    <label
-      ><span class="label">Reason</span><textarea
-        class="textarea-field mt-2 min-h-28 w-full py-3"
+      />
+    </FormField>
+    <FormField label="Reason" required>
+      <textarea
+        class="textarea-field"
         bind:value={penaltyForm.reason}
         required
-      ></textarea></label
-    >
-    <label class="flex items-center gap-2 text-sm"
-      ><input type="checkbox" bind:checked={penaltyForm.send_email} /> Send email</label
-    >
+      ></textarea>
+    </FormField>
+    <label class="flex items-center gap-2 text-sm text-muted-strong">
+      <input type="checkbox" bind:checked={penaltyForm.send_email} />
+      Send email
+    </label>
     <div class="flex justify-end gap-2">
       <Button
-        variant="secondary"
         type="button"
-        on:click={() => (penaltyOpen = false)}>Cancel</Button
-      ><Button type="submit">Apply penalty</Button>
-    </div>
-  </form>
-</Modal>
-
-<Modal
-  open={notifyOpen}
-  title="Send notification"
-  on:close={() => (notifyOpen = false)}
->
-  <form class="space-y-3" on:submit|preventDefault={sendNotification}>
-    <label
-      ><span class="label">Subject</span><input
-        class="input-field mt-2 w-full"
-        bind:value={notificationForm.subject}
-        required
-      /></label
-    >
-    <label
-      ><span class="label">Channel</span><select
-        class="select-field mt-2 w-full"
-        bind:value={notificationForm.channel}
-        ><option value="dashboard">Dashboard</option><option value="email"
-          >Email</option
-        ><option value="both">Both</option></select
-      ></label
-    >
-    <label
-      ><span class="label">Body</span><textarea
-        class="textarea-field mt-2 min-h-28 w-full py-3"
-        bind:value={notificationForm.body}
-        required
-      ></textarea></label
-    >
-    <div class="flex justify-end gap-2">
-      <Button
         variant="secondary"
-        type="button"
-        on:click={() => (notifyOpen = false)}>Cancel</Button
-      ><Button type="submit">Send</Button>
+        on:click={() => (penaltyOpen = false)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit">Apply penalty</Button>
     </div>
   </form>
 </Modal>

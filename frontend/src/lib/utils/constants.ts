@@ -11,7 +11,7 @@ export type Role = (typeof ROLES)[keyof typeof ROLES];
 export const MEAL_TYPES = ['breakfast', 'lunch', 'dinner'] as const;
 export type MealType = (typeof MEAL_TYPES)[number];
 
-export const WARNING_LEVELS = ['yellow', 'orange', 'red'] as const;
+export const WARNING_LEVELS = ['level_1', 'level_2', 'level_3'] as const;
 export type WarningLevel = (typeof WARNING_LEVELS)[number];
 
 export const STUDENT_STATUSES = ['green', 'yellow', 'orange', 'red'] as const;

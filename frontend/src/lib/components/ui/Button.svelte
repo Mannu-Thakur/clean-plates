@@ -22,6 +22,7 @@
   {type}
   {disabled}
   class={`${baseClass} ${sizeExtra} ${klass}`}
+  on:click
   {...$$restProps}
 >
   <slot />

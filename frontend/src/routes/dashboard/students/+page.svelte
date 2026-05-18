@@ -1,16 +1,87 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
-  import { Download, FileUp, RefreshCw, UserPlus } from '@lucide/svelte';
+  import { goto } from '$app/navigation';
+  import {
+    AlertTriangle,
+    Download,
+    FileUp,
+    RefreshCw,
+    UserPlus
+  } from '@lucide/svelte';
   import { api } from '$lib/api/client';
   import type { Paginated, Student } from '$lib/api/types';
+  import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import Button from '$lib/components/ui/Button.svelte';
   import Card from '$lib/components/ui/Card.svelte';
+  import DataTable, {
+    type TableColumn
+  } from '$lib/components/ui/DataTable.svelte';
   import EmptyState from '$lib/components/ui/EmptyState.svelte';
+  import FileUpload from '$lib/components/ui/FileUpload.svelte';
+  import FilterBar, {
+    type FilterConfig
+  } from '$lib/components/ui/FilterBar.svelte';
+  import FormField from '$lib/components/ui/FormField.svelte';
   import Modal from '$lib/components/ui/Modal.svelte';
+  import SearchInput from '$lib/components/ui/SearchInput.svelte';
   import StatCard from '$lib/components/ui/StatCard.svelte';
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
   import { grams, number, titleCase } from '$lib/utils/format';
   import { notify } from '$lib/stores/toast';
+  import { STUDENT_STATUSES } from '$lib/utils/constants';
+
+  type StudentFilters = {
+    status: string;
+    branch: string;
+    hostel: string;
+    year: string;
+  };
+  type WarningForm = {
+    level: string;
+    reason: string;
+    send_email: boolean;
+  };
+
+  const filterConfig: FilterConfig[] = [
+    {
+      key: 'status',
+      label: 'Status',
+      type: 'select',
+      options: [
+        { value: '', label: 'All statuses' },
+        ...STUDENT_STATUSES.map((s) => ({ value: s, label: titleCase(s) }))
+      ]
+    },
+    { key: 'branch', label: 'Branch', type: 'text', placeholder: 'CSE' },
+    { key: 'hostel', label: 'Hostel', type: 'text', placeholder: 'A Block' },
+    {
+      key: 'year',
+      label: 'Year',
+      type: 'select',
+      options: [
+        { value: '', label: 'All years' },
+        { value: '1', label: 'Year 1' },
+        { value: '2', label: 'Year 2' },
+        { value: '3', label: 'Year 3' },
+        { value: '4', label: 'Year 4' }
+      ]
+    }
+  ];
+
+  const columns: TableColumn[] = [
+    { key: 'select', label: '', width: '48px' },
+    { key: 'status', label: 'Status', sortable: true },
+    { key: 'device_id', label: 'Device ID' },
+    { key: 'name', label: 'Student', sortable: true },
+    { key: 'branch', label: 'Branch', sortable: true },
+    { key: 'warning_count', label: 'Warnings', sortable: true, align: 'right' },
+    {
+      key: 'avg_waste_grams',
+      label: 'Avg waste',
+      sortable: true,
+      align: 'right'
+    }
+  ];
 
   let loading = true;
   let error = '';
@@ -26,7 +97,8 @@
   let size = 25;
   let sort = 'created_at';
   let order: 'asc' | 'desc' = 'desc';
-  let filters = { status: '', hostel: '', branch: '', year: '' };
+  let filters: StudentFilters = defaultFilters();
+  let searchTerm = '';
   let mappingStudent: Student | null = null;
   let mapping = {
     name: '',
@@ -37,9 +109,16 @@
     room_number: '',
     email: ''
   };
-  let importFile: File | null = null;
   let importOpen = false;
+  let importFile: File | null = null;
+  let quickWarnStudent: Student | null = null;
+  let quickWarning: WarningForm = defaultWarningForm();
+  let bulkWarnOpen = false;
+  let bulkWarning: WarningForm = defaultWarningForm();
 
+  $: filterRecord = filters as unknown as Record<string, unknown>;
+  $: visibleStudents = response.items.filter(matchesSearch);
+  $: tableRows = visibleStudents as unknown as Record<string, unknown>[];
   $: totalMapped = response.items.filter((student) => student.mapping).length;
   $: warningCount = response.items.filter(
     (student) => student.warning_count > 0
@@ -47,6 +126,17 @@
   $: penaltyCount = response.items.filter(
     (student) => student.penalty_count > 0
   ).length;
+  $: visibleSelected =
+    visibleStudents.length > 0 &&
+    visibleStudents.every((student) => selected.has(student.id));
+
+  function defaultFilters(): StudentFilters {
+    return { status: '', branch: '', hostel: '', year: '' };
+  }
+
+  function defaultWarningForm(): WarningForm {
+    return { level: 'level_1', reason: '', send_email: true };
+  }
 
   function query() {
     return {
@@ -61,15 +151,93 @@
     };
   }
 
+  function mappingOf(row: Record<string, unknown>) {
+    return (row.mapping ?? null) as Student['mapping'];
+  }
+
+  function studentOf(row: Record<string, unknown>) {
+    return row as unknown as Student;
+  }
+
+  function matchesSearch(student: Student) {
+    const needle = searchTerm.trim().toLowerCase();
+    if (!needle) return true;
+    const haystack = [
+      student.device_id,
+      student.mapping?.name,
+      student.mapping?.roll_number,
+      student.mapping?.branch,
+      student.mapping?.hostel,
+      student.mapping?.email
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(needle);
+  }
+
   async function loadStudents() {
     loading = true;
     error = '';
     try {
-      response = await api.get<Paginated<Student>>('/students', query());
+      response = await api.get<Paginated<Student>>('/students/', query());
+      selected = new Set(
+        Array.from(selected).filter((id) =>
+          response.items.some((student) => student.id === id)
+        )
+      );
     } catch (err) {
       error = err instanceof Error ? err.message : 'Could not load students';
     } finally {
       loading = false;
+    }
+  }
+
+  function applyFilters(values: Record<string, unknown>) {
+    filters = {
+      status: String(values.status ?? ''),
+      branch: String(values.branch ?? ''),
+      hostel: String(values.hostel ?? ''),
+      year: String(values.year ?? '')
+    };
+    page = 1;
+    loadStudents();
+  }
+
+  function resetFilters() {
+    filters = defaultFilters();
+    page = 1;
+    loadStudents();
+  }
+
+  function toggleSort(key: string) {
+    if (sort === key) {
+      order = order === 'asc' ? 'desc' : 'asc';
+    } else {
+      sort = key;
+      order = 'desc';
+    }
+    page = 1;
+    loadStudents();
+  }
+
+  function goToPage(nextPage: number) {
+    page = nextPage;
+    loadStudents();
+  }
+
+  function toggleSelected(id: string) {
+    selected = new Set(selected);
+    if (selected.has(id)) selected.delete(id);
+    else selected.add(id);
+  }
+
+  function toggleVisibleSelection() {
+    selected = new Set(selected);
+    if (visibleSelected) {
+      visibleStudents.forEach((student) => selected.delete(student.id));
+    } else {
+      visibleStudents.forEach((student) => selected.add(student.id));
     }
   }
 
@@ -111,7 +279,7 @@
 
   async function importCsv() {
     if (!importFile) {
-      notify('Choose a CSV file first.', 'error');
+      notify('Choose a CSV file first.', 'warning');
       return;
     }
     try {
@@ -122,7 +290,7 @@
       }>('/students/import-mapping', 'csv_file', importFile);
       notify(
         `Imported ${result.successful}/${result.total_rows} rows.`,
-        result.failed ? 'info' : 'success'
+        result.failed ? 'warning' : 'success'
       );
       importOpen = false;
       importFile = null;
@@ -150,20 +318,48 @@
     }
   }
 
-  async function bulkWarn() {
+  function openQuickWarning(student: Student) {
+    quickWarnStudent = student;
+    quickWarning = defaultWarningForm();
+  }
+
+  async function issueQuickWarning() {
+    if (!quickWarnStudent) return;
+    try {
+      await api.post(`/students/${quickWarnStudent.id}/warnings`, quickWarning);
+      notify('Warning issued.', 'success');
+      quickWarnStudent = null;
+      quickWarning = defaultWarningForm();
+      await loadStudents();
+    } catch (err) {
+      notify(
+        err instanceof Error ? err.message : 'Could not issue warning.',
+        'error'
+      );
+    }
+  }
+
+  function openBulkWarning() {
+    if (selected.size === 0) {
+      notify('Choose at least one student.', 'warning');
+      return;
+    }
+    bulkWarning = defaultWarningForm();
+    bulkWarnOpen = true;
+  }
+
+  async function issueBulkWarning() {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
-    const reason = window.prompt('Reason for bulk warning');
-    if (!reason) return;
     try {
       await api.post('/students/bulk/warn', {
         student_ids: ids,
-        reason,
-        level: 'level_1',
-        send_email: true
+        ...bulkWarning
       });
       notify('Bulk warnings issued.', 'success');
       selected = new Set();
+      bulkWarnOpen = false;
+      bulkWarning = defaultWarningForm();
       await loadStudents();
     } catch (err) {
       notify(
@@ -173,28 +369,6 @@
     }
   }
 
-  function toggleSort(column: string) {
-    if (sort === column) order = order === 'asc' ? 'desc' : 'asc';
-    else {
-      sort = column;
-      order = 'asc';
-    }
-    loadStudents();
-  }
-
-  function toggleSelected(id: string) {
-    selected = new Set(selected);
-    if (selected.has(id)) selected.delete(id);
-    else selected.add(id);
-  }
-
-  function selectAll() {
-    selected =
-      selected.size === response.items.length
-        ? new Set()
-        : new Set(response.items.map((student) => student.id));
-  }
-
   onMount(loadStudents);
 </script>
 
@@ -202,265 +376,225 @@
   <title>Students | CleanPlates</title>
 </svelte:head>
 
-<div class="mb-5 flex flex-wrap items-center justify-between gap-3">
-  <div>
-    <p class="label">Student mapping</p>
-    <h2 class="mt-1 text-2xl font-semibold text-body">
-      Device IDs and student profiles
-    </h2>
-  </div>
-  <div class="flex flex-wrap gap-2">
-    <Button variant="secondary" on:click={loadStudents}
-      ><RefreshCw size={16} />Refresh</Button
-    >
+<PageHeader
+  label="Student intelligence"
+  title="Student profiles, mappings, and warnings"
+  description="Filter by supported server fields, search the visible page locally, and open full Phase 3 student profiles."
+>
+  <svelte:fragment slot="actions">
+    <Button variant="secondary" on:click={loadStudents} id="btn-refresh-students">
+      <RefreshCw size={16} />
+      Refresh
+    </Button>
     <Button
       variant="secondary"
       on:click={() => (importOpen = true)}
-      id="btn-import-csv"><FileUp size={16} />Import</Button
+      id="btn-import-csv"
     >
-    <Button on:click={() => exportStudents('csv')} id="btn-export-students"
-      ><Download size={16} />Export</Button
-    >
+      <FileUp size={16} />
+      Import
+    </Button>
+    <Button on:click={() => exportStudents('csv')} id="btn-export-students">
+      <Download size={16} />
+      Export
+    </Button>
+  </svelte:fragment>
+</PageHeader>
+
+<div class="mb-5 grid gap-3 xl:grid-cols-[320px_1fr]">
+  <div class="card p-4">
+    <span class="form-label">Search current page</span>
+    <SearchInput
+      value={searchTerm}
+      placeholder="Name, roll number, device ID"
+      onSearch={(value) => (searchTerm = value)}
+      onClear={() => (searchTerm = '')}
+      id="input-student-search"
+    />
+    <p class="mt-2 text-xs text-muted">
+      Search is client-side only and is not sent to the students API.
+    </p>
   </div>
+
+  <FilterBar
+    filters={filterConfig}
+    values={filterRecord}
+    onFilter={applyFilters}
+    onReset={resetFilters}
+  />
 </div>
 
-<Card title="Search and filters">
-  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-    <label
-      ><span class="label">Status</span><select
-        class="select-field mt-2 w-full"
-        bind:value={filters.status}
-        id="select-filter-status"
-        ><option value="">All</option><option>green</option><option
-          >yellow</option
-        ><option>orange</option><option>red</option></select
-      ></label
-    >
-    <label
-      ><span class="label">Hostel</span><input
-        class="input-field mt-2 w-full"
-        bind:value={filters.hostel}
-        id="select-filter-hostel"
-      /></label
-    >
-    <label
-      ><span class="label">Branch</span><input
-        class="input-field mt-2 w-full"
-        bind:value={filters.branch}
-      /></label
-    >
-    <label
-      ><span class="label">Year</span><select
-        class="select-field mt-2 w-full"
-        bind:value={filters.year}
-        ><option value="">All</option><option>1</option><option>2</option
-        ><option>3</option><option>4</option></select
-      ></label
-    >
-    <div class="flex items-end">
-      <Button
-        class="w-full"
-        on:click={() => {
-          page = 1;
-          loadStudents();
-        }}>Apply</Button
-      >
-    </div>
-  </div>
-</Card>
-
-<div class="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-  <StatCard title="Total" value={number(response.total)} helper="All device IDs"
-    ><svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment
-    ></StatCard
-  >
+<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+  <StatCard title="Total" value={number(response.total)} helper="All matching students">
+    <svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="Mapped On Page"
     value={number(totalMapped)}
-    helper={`${number(response.items.length)} visible`}
+    helper={`${number(response.items.length)} visible from server`}
     tone="good"
-    ><svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment
-    ></StatCard
   >
+    <svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="Warnings"
     value={number(warningCount)}
     helper="Current page"
     tone="warn"
-    ><svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment
-    ></StatCard
   >
+    <svelte:fragment slot="icon"><AlertTriangle size={19} /></svelte:fragment>
+  </StatCard>
   <StatCard
     title="Penalties"
     value={number(penaltyCount)}
     helper="Current page"
     tone="bad"
-    ><svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment
-    ></StatCard
   >
-  <StatCard title="Selected" value={number(selected.size)} helper="Bulk actions"
-    ><svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment
-    ></StatCard
-  >
+    <svelte:fragment slot="icon"><AlertTriangle size={19} /></svelte:fragment>
+  </StatCard>
+  <StatCard title="Selected" value={number(selected.size)} helper="Bulk warning queue">
+    <svelte:fragment slot="icon"><UserPlus size={19} /></svelte:fragment>
+  </StatCard>
 </div>
 
-<Card
-  class="mt-5"
-  title="Students table"
-  description="Mapping calls use the student UUID, not the card device ID."
->
-  {#if error}
-    <div class="rounded-md border border-down/30 bg-down/10 p-3 text-down">
-      {error}
-    </div>
-  {:else if loading}
-    <div class="h-96 animate-pulse rounded-lg bg-elevated"></div>
-  {:else if response.items.length === 0}
-    <EmptyState
-      title="No students"
-      message="Register devices or import student mappings to populate this table."
-    />
-  {:else}
-    <div class="overflow-auto">
-      <table>
-        <thead class="bg-elevated">
-          <tr>
-            <th class="th"
-              ><input
-                id="chk-select-all"
-                type="checkbox"
-                checked={selected.size === response.items.length}
-                on:change={selectAll}
-              /></th
-            >
-            <th class="th"
-              ><button on:click={() => toggleSort('status')}>Status</button></th
-            >
-            <th class="th"
-              ><button on:click={() => toggleSort('device_id')}
-                >Device ID</button
-              ></th
-            >
-            <th class="th">Mapped Name</th>
-            <th class="th"
-              ><button on:click={() => toggleSort('warning_count')}
-                >Warnings</button
-              ></th
-            >
-            <th class="th">Avg Waste</th>
-            <th class="th">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each response.items as student (student.id)}
-            <tr>
-              <td class="td"
-                ><input
-                  type="checkbox"
-                  checked={selected.has(student.id)}
-                  on:change={() => toggleSelected(student.id)}
-                /></td
-              >
-              <td class="td"><StatusBadge value={student.status} compact /></td>
-              <td class="td font-mono text-xs">{student.device_id}</td>
-              <td class="td">
-                {#if student.mapping}
-                  <a
-                    class="font-semibold text-primary"
-                    href={`/dashboard/students/${student.id}`}
-                    >{student.mapping.name}</a
-                  >
-                  <p class="text-xs text-muted">
-                    {student.mapping.roll_number} · {student.mapping.branch} · Year
-                    {student.mapping.year}
-                  </p>
-                {:else}
-                  <StatusBadge value="unmapped" compact />
-                {/if}
-              </td>
-              <td class="td"
-                >{number(student.warning_count)} warnings · {number(
-                  student.penalty_count
-                )} penalties</td
-              >
-              <td class="td">{grams(student.avg_waste_grams)}</td>
-              <td class="td">
-                <div class="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    on:click={() => openMapping(student)}
-                    id={`btn-map-${student.device_id}`}
-                    >{student.mapping ? 'Edit' : 'Map'}</Button
-                  >
-                  <a
-                    class="inline-flex h-9 items-center rounded-md border border-border px-3 text-xs font-semibold hover:border-primary"
-                    href={`/dashboard/students/${student.id}`}>Open</a
-                  >
-                </div>
-              </td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-    </div>
+<div class="mt-5 flex flex-wrap items-center justify-between gap-3">
+  <div class="flex flex-wrap gap-2">
+    <Button
+      variant="secondary"
+      size="sm"
+      on:click={toggleVisibleSelection}
+      disabled={visibleStudents.length === 0}
+      id="btn-select-visible"
+    >
+      {visibleSelected ? 'Clear visible' : 'Select visible'}
+    </Button>
+    <Button
+      variant="secondary"
+      size="sm"
+      on:click={openBulkWarning}
+      disabled={selected.size === 0}
+      id="btn-bulk-warn"
+    >
+      Bulk warn
+    </Button>
+  </div>
 
-    <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          on:click={bulkWarn}
-          disabled={selected.size === 0}
-          id="btn-bulk-warn">Bulk warn</Button
-        >
-        <Button
-          variant="secondary"
-          size="sm"
-          on:click={() => exportStudents('excel')}
-          disabled={selected.size === 0}
-          id="btn-bulk-export">Bulk export</Button
-        >
-      </div>
-      <div class="flex items-center gap-2" id="nav-pagination">
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page <= 1}
-          on:click={() => {
-            page -= 1;
-            loadStudents();
-          }}>Previous</Button
-        >
-        <span class="text-sm text-muted"
-          >Page {response.page} of {response.pages}</span
-        >
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page >= response.pages}
-          on:click={() => {
-            page += 1;
-            loadStudents();
-          }}>Next</Button
-        >
-        <select
-          class="select-field"
-          bind:value={size}
-          on:change={() => {
-            page = 1;
-            loadStudents();
-          }}
-          id="select-page-size"
-        >
-          <option value={10}>10</option><option value={25}>25</option><option
-            value={50}>50</option
-          ><option value={100}>100</option>
-        </select>
-      </div>
-    </div>
+  <select
+    class="select-field w-28"
+    bind:value={size}
+    on:change={() => {
+      page = 1;
+      loadStudents();
+    }}
+    id="select-page-size"
+  >
+    <option value={10}>10</option>
+    <option value={25}>25</option>
+    <option value={50}>50</option>
+    <option value={100}>100</option>
+  </select>
+</div>
+
+<div class="mt-4">
+  {#if error}
+    <Card title="Students unavailable" description={error}>
+      <Button on:click={loadStudents}>Retry</Button>
+    </Card>
+  {:else}
+    <DataTable
+      {columns}
+      rows={tableRows}
+      {loading}
+      {page}
+      total={response.total}
+      pageSize={size}
+      sortKey={sort}
+      sortDirection={order}
+      onSort={toggleSort}
+      onPageChange={goToPage}
+      onRowClick={(row) => goto(`/dashboard/students/${studentOf(row).id}`)}
+    >
+      <svelte:fragment slot="cell" let:row let:column let:value>
+        {#if column.key === 'select'}
+          <input
+            type="checkbox"
+            checked={selected.has(studentOf(row).id)}
+            on:click|stopPropagation
+            on:change={() => toggleSelected(studentOf(row).id)}
+            aria-label={`Select ${studentOf(row).device_id}`}
+          />
+        {:else if column.key === 'status'}
+          <StatusBadge value={String(value)} compact />
+        {:else if column.key === 'device_id'}
+          <span class="font-mono text-xs text-muted-strong">
+            {studentOf(row).device_id}
+          </span>
+        {:else if column.key === 'name'}
+          {#if mappingOf(row)}
+            <div>
+              <p class="font-semibold text-body">{mappingOf(row)?.name}</p>
+              <p class="mt-1 text-xs text-muted">
+                {mappingOf(row)?.roll_number} / {mappingOf(row)?.branch} / Year
+                {mappingOf(row)?.year}
+              </p>
+            </div>
+          {:else}
+            <StatusBadge value="unmapped" compact />
+          {/if}
+        {:else if column.key === 'branch'}
+          {#if mappingOf(row)}
+            <div>
+              <p>{mappingOf(row)?.branch}</p>
+              <p class="mt-1 text-xs text-muted">
+                {mappingOf(row)?.hostel ?? 'No hostel'}
+              </p>
+            </div>
+          {:else}
+            <span class="text-muted">-</span>
+          {/if}
+        {:else if column.key === 'warning_count'}
+          <span>
+            {number(studentOf(row).warning_count)} / {number(
+              studentOf(row).penalty_count
+            )}
+          </span>
+        {:else if column.key === 'avg_waste_grams'}
+          {grams(studentOf(row).avg_waste_grams)}
+        {:else}
+          {value ?? '-'}
+        {/if}
+      </svelte:fragment>
+
+      <svelte:fragment slot="row-actions" let:row>
+        <div class="flex flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            on:click={() => openMapping(studentOf(row))}
+            id={`btn-map-${studentOf(row).device_id}`}
+          >
+            {studentOf(row).mapping ? 'Edit' : 'Map'}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            on:click={() => openQuickWarning(studentOf(row))}
+            id={`btn-warn-${studentOf(row).device_id}`}
+          >
+            Warn
+          </Button>
+        </div>
+      </svelte:fragment>
+
+      <svelte:fragment slot="empty">
+        <EmptyState
+          title="No students"
+          message="Adjust the filters, clear local search, or import student mappings."
+        />
+      </svelte:fragment>
+    </DataTable>
   {/if}
-</Card>
+</div>
 
 <Modal
   open={!!mappingStudent}
@@ -472,62 +606,44 @@
     class="grid gap-3 sm:grid-cols-2"
     on:submit|preventDefault={saveMapping}
   >
-    <label
-      ><span class="label">Full name</span><input
-        class="input-field mt-2 w-full"
-        bind:value={mapping.name}
-        required
-      /></label
-    >
-    <label
-      ><span class="label">Roll number</span><input
-        class="input-field mt-2 w-full"
-        bind:value={mapping.roll_number}
-        required
-      /></label
-    >
-    <label
-      ><span class="label">Branch</span><input
-        class="input-field mt-2 w-full"
-        bind:value={mapping.branch}
-        required
-      /></label
-    >
-    <label
-      ><span class="label">Year</span><input
-        class="input-field mt-2 w-full"
+    <FormField label="Full name" required>
+      <input class="input-field" bind:value={mapping.name} required />
+    </FormField>
+    <FormField label="Roll number" required>
+      <input class="input-field" bind:value={mapping.roll_number} required />
+    </FormField>
+    <FormField label="Branch" required>
+      <input class="input-field" bind:value={mapping.branch} required />
+    </FormField>
+    <FormField label="Year" required>
+      <input
+        class="input-field"
         type="number"
         min="1"
         max="4"
         bind:value={mapping.year}
         required
-      /></label
-    >
-    <label
-      ><span class="label">Hostel</span><input
-        class="input-field mt-2 w-full"
-        bind:value={mapping.hostel}
-      /></label
-    >
-    <label
-      ><span class="label">Room</span><input
-        class="input-field mt-2 w-full"
-        bind:value={mapping.room_number}
-      /></label
-    >
-    <label class="sm:col-span-2"
-      ><span class="label">Email</span><input
-        class="input-field mt-2 w-full"
-        type="email"
-        bind:value={mapping.email}
-      /></label
-    >
-    <div class="sm:col-span-2 flex justify-end gap-2 pt-2">
+      />
+    </FormField>
+    <FormField label="Hostel">
+      <input class="input-field" bind:value={mapping.hostel} />
+    </FormField>
+    <FormField label="Room">
+      <input class="input-field" bind:value={mapping.room_number} />
+    </FormField>
+    <div class="sm:col-span-2">
+      <FormField label="Email">
+        <input class="input-field" type="email" bind:value={mapping.email} />
+      </FormField>
+    </div>
+    <div class="flex justify-end gap-2 pt-2 sm:col-span-2">
       <Button
         type="button"
         variant="secondary"
-        on:click={() => (mappingStudent = null)}>Cancel</Button
+        on:click={() => (mappingStudent = null)}
       >
+        Cancel
+      </Button>
       <Button type="submit">Save mapping</Button>
     </div>
   </form>
@@ -540,18 +656,93 @@
   on:close={() => (importOpen = false)}
 >
   <div class="space-y-4">
-    <input
-      class="input-field w-full py-2"
-      type="file"
+    <FileUpload
       accept=".csv,text/csv"
-      on:change={(event) =>
-        (importFile = event.currentTarget.files?.[0] ?? null)}
+      maxSizeMb={5}
+      label="Upload mapping CSV"
+      onSelect={(file) => (importFile = file)}
     />
     <div class="flex justify-end gap-2">
-      <Button variant="secondary" on:click={() => (importOpen = false)}
-        >Cancel</Button
-      >
+      <Button variant="secondary" on:click={() => (importOpen = false)}>
+        Cancel
+      </Button>
       <Button on:click={importCsv}>Import CSV</Button>
     </div>
   </div>
+</Modal>
+
+<Modal
+  open={!!quickWarnStudent}
+  title="Issue warning"
+  description={quickWarnStudent?.mapping?.name ?? quickWarnStudent?.device_id ?? ''}
+  on:close={() => (quickWarnStudent = null)}
+>
+  <form class="space-y-3" on:submit|preventDefault={issueQuickWarning}>
+    <FormField label="Level" required>
+      <select class="select-field" bind:value={quickWarning.level}>
+        <option value="level_1">Level 1</option>
+        <option value="level_2">Level 2</option>
+        <option value="level_3">Level 3</option>
+      </select>
+    </FormField>
+    <FormField label="Reason" required>
+      <textarea
+        class="textarea-field"
+        bind:value={quickWarning.reason}
+        required
+      ></textarea>
+    </FormField>
+    <label class="flex items-center gap-2 text-sm text-muted-strong">
+      <input type="checkbox" bind:checked={quickWarning.send_email} />
+      Send email
+    </label>
+    <div class="flex justify-end gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        on:click={() => (quickWarnStudent = null)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit">Issue warning</Button>
+    </div>
+  </form>
+</Modal>
+
+<Modal
+  open={bulkWarnOpen}
+  title="Bulk warning"
+  description={`${number(selected.size)} selected students`}
+  on:close={() => (bulkWarnOpen = false)}
+>
+  <form class="space-y-3" on:submit|preventDefault={issueBulkWarning}>
+    <FormField label="Level" required>
+      <select class="select-field" bind:value={bulkWarning.level}>
+        <option value="level_1">Level 1</option>
+        <option value="level_2">Level 2</option>
+        <option value="level_3">Level 3</option>
+      </select>
+    </FormField>
+    <FormField label="Reason" required>
+      <textarea
+        class="textarea-field"
+        bind:value={bulkWarning.reason}
+        required
+      ></textarea>
+    </FormField>
+    <label class="flex items-center gap-2 text-sm text-muted-strong">
+      <input type="checkbox" bind:checked={bulkWarning.send_email} />
+      Send email
+    </label>
+    <div class="flex justify-end gap-2">
+      <Button
+        type="button"
+        variant="secondary"
+        on:click={() => (bulkWarnOpen = false)}
+      >
+        Cancel
+      </Button>
+      <Button type="submit">Warn selected</Button>
+    </div>
+  </form>
 </Modal>
