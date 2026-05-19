@@ -3,8 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#0b0e11" />
+    <script>
+      try {
+        const theme = window.localStorage.getItem('cleanplates.theme');
+        if (theme === 'dark' || theme === 'light') {
+          document.documentElement.dataset.theme = theme;
+        }
+      } catch {}
+    </script>
     <meta
       name="description"
       content="CleanPlates — Smart Mess Waste Intelligence Platform"

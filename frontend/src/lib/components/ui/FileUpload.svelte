@@ -5,6 +5,7 @@
   export let accept = '';
   export let maxSizeMb = 10;
   export let onSelect: (file: File) => void = () => {};
+  export let onClear: () => void = () => {};
   export let label = 'Upload file';
   export let uploading = false;
 
@@ -34,6 +35,7 @@
   function clear() {
     selected = null;
     if (input) input.value = '';
+    onClear();
   }
 </script>
 
@@ -57,10 +59,10 @@
     >
       <Upload size={18} />
     </span>
-    <span>
-      <span class="block text-sm font-semibold text-body">{label}</span>
-      <span class="mt-1 block text-xs text-muted"
-        >Drop a file here or browse. Max {maxSizeMb}MB.</span
+      <span class="min-w-0">
+        <span class="block text-sm font-semibold text-body">{label}</span>
+        <span class="mt-1 block text-xs text-muted"
+          >Drop a file here or browse. Max {maxSizeMb}MB.</span
       >
     </span>
   </button>

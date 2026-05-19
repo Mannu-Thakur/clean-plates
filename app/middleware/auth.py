@@ -18,14 +18,17 @@ from app.middleware.db import get_db_session
 from app.models.user import UserModel
 from app.schemas.auth import UserSchema
 
-_bearer_scheme = HTTPBearer()
+_bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer_scheme),
     db: AsyncSession = Depends(get_db_session),
 ) -> UserSchema:
     """Decode JWT from Authorization header, fetch user, return UserSchema."""
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     payload = decode_token(credentials.credentials)
     if payload is None or payload.get("type") != "access":
         raise HTTPException(

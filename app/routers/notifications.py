@@ -37,13 +37,22 @@ async def list_notifications(
     tab: str | None = Query(default=None),
     type_filter: str | None = Query(default=None, alias="type"),
     channel: str | None = Query(default=None),
+    status_filter: str | None = Query(default=None, alias="status"),
+    is_read: bool | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     size: int = Query(default=20, ge=1, le=100),
     current_user: UserSchema = Depends(require_roles(*NOTIF_ROLES)),  # noqa: ARG001
     db: AsyncSession = Depends(get_db_session),
 ):
     return await notification_controller.list_notifications(
-        db, tab=tab, type_filter=type_filter, channel=channel, page=page, size=size
+        db,
+        tab=tab,
+        type_filter=type_filter,
+        channel=channel,
+        status_filter=status_filter,
+        is_read=is_read,
+        page=page,
+        size=size,
     )
 
 

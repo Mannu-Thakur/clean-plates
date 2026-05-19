@@ -26,11 +26,20 @@ async def list_notifications(
     tab: str | None = None,
     type_filter: str | None = None,
     channel: str | None = None,
+    status_filter: str | None = None,
+    is_read: bool | None = None,
     page: int = 1,
     size: int = 20,
 ) -> PaginatedNotifications:
     return await notification_service.list_notifications(
-        db, tab=tab, type_filter=type_filter, channel=channel, page=page, size=size
+        db,
+        tab=tab,
+        type_filter=type_filter,
+        channel=channel,
+        status_filter=status_filter,
+        is_read=is_read,
+        page=page,
+        size=size,
     )
 
 

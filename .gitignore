@@ -4,6 +4,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.pytest-tmp/
 .venv/
 venv/
 
@@ -18,6 +19,12 @@ reports/
 !frontend/src/routes/dashboard/reports/+page.svelte
 backups/
 logs/
+*-dev*.log
+backend-live.log
+httpserver*.log
+python-version*.log
+sleep*.log
+scratch_*.py
 frontend-dev*.log
 frontend/.svelte-kit/
 frontend/build/

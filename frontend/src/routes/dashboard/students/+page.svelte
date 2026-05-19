@@ -129,6 +129,9 @@
   $: visibleSelected =
     visibleStudents.length > 0 &&
     visibleStudents.every((student) => selected.has(student.id));
+  $: canBulkWarn = selected.size > 0 && !loading;
+  $: canSubmitBulkWarning =
+    selected.size > 0 && bulkWarning.reason.trim().length > 0;
 
   function defaultFilters(): StudentFilters {
     return { status: '', branch: '', hostel: '', year: '' };
@@ -227,18 +230,20 @@
   }
 
   function toggleSelected(id: string) {
-    selected = new Set(selected);
-    if (selected.has(id)) selected.delete(id);
-    else selected.add(id);
+    const next = new Set(selected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selected = next;
   }
 
   function toggleVisibleSelection() {
-    selected = new Set(selected);
+    const next = new Set(selected);
     if (visibleSelected) {
-      visibleStudents.forEach((student) => selected.delete(student.id));
+      visibleStudents.forEach((student) => next.delete(student.id));
     } else {
-      visibleStudents.forEach((student) => selected.add(student.id));
+      visibleStudents.forEach((student) => next.add(student.id));
     }
+    selected = next;
   }
 
   function openMapping(student: Student) {
@@ -340,7 +345,7 @@
   }
 
   function openBulkWarning() {
-    if (selected.size === 0) {
+    if (!canBulkWarn) {
       notify('Choose at least one student.', 'warning');
       return;
     }
@@ -350,11 +355,12 @@
 
   async function issueBulkWarning() {
     const ids = Array.from(selected);
-    if (ids.length === 0) return;
+    if (ids.length === 0 || !bulkWarning.reason.trim()) return;
     try {
       await api.post('/students/bulk/warn', {
         student_ids: ids,
-        ...bulkWarning
+        ...bulkWarning,
+        reason: bulkWarning.reason.trim()
       });
       notify('Bulk warnings issued.', 'success');
       selected = new Set();
@@ -484,7 +490,7 @@
       variant="secondary"
       size="sm"
       on:click={openBulkWarning}
-      disabled={selected.size === 0}
+      disabled={!canBulkWarn}
       id="btn-bulk-warn"
     >
       Bulk warn
@@ -750,7 +756,9 @@
       >
         Cancel
       </Button>
-      <Button type="submit">Warn selected</Button>
+      <Button type="submit" disabled={!canSubmitBulkWarning}>
+        Warn selected
+      </Button>
     </div>
   </form>
 </Modal>

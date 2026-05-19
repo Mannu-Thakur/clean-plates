@@ -4,6 +4,22 @@ import type { Dict, StoredSession, TokenPair, User } from './types';
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1';
 const SESSION_KEY = 'cleanplates.session';
+const ACCESS_TOKEN_REFRESH_SKEW_MS = 60_000;
+const TRAILING_SLASH_ROOTS = new Set([
+  'audit',
+  'devices',
+  'escalations',
+  'notifications',
+  'penalties',
+  'reports',
+  'roles',
+  'rules',
+  'students',
+  'templates',
+  'warnings'
+]);
+
+let refreshPromise: Promise<boolean> | null = null;
 
 export class ApiError extends Error {
   status: number;
@@ -36,16 +52,20 @@ function emitSessionChange() {
 }
 
 export function readStoredSession(): StoredSession | null {
+  const sessions: StoredSession[] = [];
   for (const storage of storageCandidates()) {
     const raw = storage.getItem(SESSION_KEY);
     if (!raw) continue;
     try {
-      return JSON.parse(raw) as StoredSession;
+      const parsed = JSON.parse(raw);
+      if (isStoredSession(parsed)) sessions.push(parsed);
+      else storage.removeItem(SESSION_KEY);
     } catch {
       storage.removeItem(SESSION_KEY);
     }
   }
-  return null;
+  if (!sessions.length) return null;
+  return sessions.sort((left, right) => right.savedAt - left.savedAt)[0];
 }
 
 export function persistSession(
@@ -82,10 +102,58 @@ export function getAccessToken(): string | null {
   return readStoredSession()?.tokens.access_token ?? null;
 }
 
+function isStoredSession(value: unknown): value is StoredSession {
+  if (!value || typeof value !== 'object') return false;
+  const session = value as Partial<StoredSession>;
+  const tokens = session.tokens as Partial<TokenPair> | undefined;
+  return (
+    !!tokens &&
+    typeof tokens.access_token === 'string' &&
+    typeof tokens.refresh_token === 'string' &&
+    typeof session.user === 'object' &&
+    session.user !== null &&
+    typeof session.remember === 'boolean' &&
+    typeof session.savedAt === 'number'
+  );
+}
+
+function tokenExpiryMs(token: string): number | null {
+  const [, payload] = token.split('.');
+  if (!payload) return null;
+  try {
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '='
+    );
+    const data = JSON.parse(atob(padded)) as { exp?: unknown };
+    return typeof data.exp === 'number' ? data.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function shouldRefreshAccessToken(session: StoredSession) {
+  const expiresAt = tokenExpiryMs(session.tokens.access_token);
+  return (
+    expiresAt !== null && Date.now() >= expiresAt - ACCESS_TOKEN_REFRESH_SKEW_MS
+  );
+}
+
+function normalizeApiPath(path: string) {
+  if (path.startsWith('http')) return path;
+  const trimmed = path.replace(/^\/+/, '').replace(/\/+$/, '');
+  if (!trimmed.includes('/') && TRAILING_SLASH_ROOTS.has(trimmed)) {
+    return `${path.replace(/\/+$/, '')}/`;
+  }
+  return path;
+}
+
 function buildUrl(path: string, query?: Record<string, QueryValue>) {
+  const normalizedPath = normalizeApiPath(path);
   const base = path.startsWith('http')
-    ? path
-    : `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+    ? normalizedPath
+    : `${API_BASE_URL}${normalizedPath.startsWith('/') ? normalizedPath : `/${normalizedPath}`}`;
   const url = new URL(
     base,
     browser ? window.location.origin : 'http://localhost'
@@ -129,21 +197,48 @@ async function parseResponse(response: Response) {
   return response.text();
 }
 
-async function refreshStoredSession(): Promise<boolean> {
+async function performRefreshStoredSession(): Promise<boolean> {
   const session = readStoredSession();
   if (!session?.tokens.refresh_token) return false;
-  const response = await fetch(buildUrl('/auth/refresh'), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refresh_token: session.tokens.refresh_token })
-  });
-  if (!response.ok) {
-    clearStoredSession();
+  const refreshToken = session.tokens.refresh_token;
+  const savedAt = session.savedAt;
+  try {
+    const response = await fetch(buildUrl('/auth/refresh'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: refreshToken })
+    });
+    if (!response.ok) {
+      const current = readStoredSession();
+      if (
+        current &&
+        current.savedAt > savedAt &&
+        current.tokens.refresh_token !== refreshToken
+      ) {
+        return true;
+      }
+      // Only clear session on definitive rejection (4xx), not server errors
+      if (response.status >= 400 && response.status < 500) {
+        clearStoredSession();
+      }
+      return false;
+    }
+    const tokens = (await response.json()) as TokenPair;
+    persistSession(tokens, session.user, session.remember);
+    return true;
+  } catch {
+    // Network error - don't clear session, just report failure
     return false;
   }
-  const tokens = (await response.json()) as TokenPair;
-  persistSession(tokens, session.user, session.remember);
-  return true;
+}
+
+export async function refreshStoredSession(): Promise<boolean> {
+  if (!refreshPromise) {
+    refreshPromise = performRefreshStoredSession().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
 }
 
 async function request<T>(
@@ -161,6 +256,11 @@ async function request<T>(
   const headers = new Headers(incomingHeaders);
   for (const [key, value] of Object.entries(contentHeaders(body)))
     headers.set(key, value);
+
+  const session = readStoredSession();
+  if (!skipAuth && session && shouldRefreshAccessToken(session)) {
+    await refreshStoredSession();
+  }
 
   const token = getAccessToken();
   if (!skipAuth && token) headers.set('Authorization', `Bearer ${token}`);
@@ -248,7 +348,7 @@ export const api = {
     }
     const blob = await response.blob();
     const disposition = response.headers.get('content-disposition') ?? '';
-    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
     saveBlob(blob, match?.[1] ?? filename);
   }
 };
@@ -262,5 +362,5 @@ export function saveBlob(blob: Blob, filename: string) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

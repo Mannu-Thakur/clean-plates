@@ -42,11 +42,21 @@
     data?: DeviceHealthSnapshot[];
     history?: DeviceHealthSnapshot[];
   };
+  type HealthMetric = 'cpu_percent' | 'ram_percent' | 'temperature';
 
   const sessionTimeline = [
     { meal: 'breakfast', label: 'Breakfast', window: '7:00-9:30' },
     { meal: 'lunch', label: 'Lunch', window: '12:00-14:30' },
     { meal: 'dinner', label: 'Dinner', window: '19:00-21:30' }
+  ];
+  const healthMetricOptions: Array<{
+    key: HealthMetric;
+    label: string;
+    unit: string;
+  }> = [
+    { key: 'cpu_percent', label: 'CPU', unit: '%' },
+    { key: 'ram_percent', label: 'RAM', unit: '%' },
+    { key: 'temperature', label: 'Temp C', unit: 'C' }
   ];
 
   let loading = true;
@@ -62,6 +72,7 @@
   let devices: DeviceStatus[] = [];
   let selectedDevice: DeviceStatus | null = null;
   let deviceHealth: DeviceHealthResponse | null = null;
+  let selectedHealthMetric: HealthMetric = 'cpu_percent';
   let selectedEntry: LiveWasteEntry | null = null;
   let socket: ReconnectingSocket | null = null;
 
@@ -95,6 +106,17 @@
     ...(deviceHealth ?? {})
   };
   $: healthPoints = deviceHealth?.history ?? deviceHealth?.data ?? [];
+  $: selectedHealthMetricOption =
+    healthMetricOptions.find((option) => option.key === selectedHealthMetric) ??
+    healthMetricOptions[0];
+  $: healthDatasets = [
+    {
+      label: `${selectedHealthMetricOption.label}${selectedHealthMetricOption.unit === '%' ? ' %' : ''}`,
+      data: healthPoints.map((point) =>
+        Number(point[selectedHealthMetric] ?? 0)
+      )
+    }
+  ];
   $: canAcknowledge = $auth.user?.role !== 'analytics_viewer';
 
   function listOf<T>(payload: ListPayload<T>): T[] {
@@ -337,6 +359,7 @@
   async function openDevice(device: DeviceStatus) {
     selectedDevice = device;
     deviceHealth = null;
+    selectedHealthMetric = 'cpu_percent';
     try {
       deviceHealth = await api.get<DeviceHealthResponse>(
         `/devices/${device.id}/health`
@@ -821,26 +844,29 @@
           />{selectedDeviceMetrics.ip_address ?? 'Unknown'}
         </p>
       </div>
-      <ChartCard
-        title="24h Health"
-        chartType="line"
-        height={340}
-        labels={healthPoints.map((point) => dateTime(point.recorded_at))}
-        datasets={[
-          {
-            label: 'CPU %',
-            data: healthPoints.map((point) => point.cpu_percent)
-          },
-          {
-            label: 'RAM %',
-            data: healthPoints.map((point) => point.ram_percent)
-          },
-          {
-            label: 'Temp C',
-            data: healthPoints.map((point) => point.temperature ?? 0)
-          }
-        ]}
-      />
+      <div class="space-y-3">
+        <fieldset class="flex flex-wrap gap-3 text-sm text-muted-strong">
+          <legend class="sr-only">Device health metric</legend>
+          {#each healthMetricOptions as option}
+            <label class="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="device-health-metric"
+                value={option.key}
+                bind:group={selectedHealthMetric}
+              />
+              <span>{option.label}</span>
+            </label>
+          {/each}
+        </fieldset>
+        <ChartCard
+          title="24h Health"
+          chartType="line"
+          height={304}
+          labels={healthPoints.map((point) => dateTime(point.recorded_at))}
+          datasets={healthDatasets}
+        />
+      </div>
     </div>
   {/if}
 </Modal>

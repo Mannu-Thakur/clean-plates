@@ -55,14 +55,14 @@ class AppearanceConfigSchema(BaseModel):
 
 
 class SecurityConfigSchema(BaseModel):
-    access_token_expiry_minutes: int = Field(default=60, ge=5, le=1440)
-    refresh_token_expiry_days: int = Field(default=7, ge=1, le=365)
+    access_token_expiry_minutes: int = Field(default=1440, ge=5, le=1440)
+    refresh_token_expiry_days: int = Field(default=30, ge=1, le=365)
     min_password_length: int = Field(default=8, ge=8, le=128)
     require_uppercase: bool = True
     require_numbers: bool = True
     max_login_attempts: int = Field(default=5, ge=1, le=50)
     lockout_duration_minutes: int = Field(default=15, ge=1, le=1440)
-    session_timeout_minutes: int = Field(default=120, ge=5, le=1440)
+    session_timeout_minutes: int = Field(default=1440, ge=5, le=1440)
 
 
 class DeviceConfigSchema(BaseModel):
@@ -75,6 +75,10 @@ class InstitutionConfigSchema(BaseModel):
     name: str = "CleanPlates Institution"
     code: str = "CP"
     timezone: str = "Asia/Kolkata"
+    address: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
 
 
 class ConfigDataSchema(BaseModel):

@@ -43,8 +43,8 @@ async def authenticate(
     security_config = await config_service.get_config(db, "security")
     max_attempts = int(security_config.get("max_login_attempts", 5))
     lockout_minutes = int(security_config.get("lockout_duration_minutes", 15))
-    access_minutes = int(security_config.get("access_token_expiry_minutes", 60))
-    refresh_days = int(security_config.get("refresh_token_expiry_days", 7))
+    access_minutes = int(security_config.get("access_token_expiry_minutes", 1440))
+    refresh_days = int(security_config.get("refresh_token_expiry_days", 30))
 
     result = await db.execute(select(UserModel).where(UserModel.email == email))
     user = result.scalar_one_or_none()
@@ -120,11 +120,11 @@ async def issue_tokens(user: UserModel, db: AsyncSession) -> TokenPairSchema:
     access_token, expires_in = create_access_token(
         user.id,
         user.role,
-        expires_minutes=int(security_config.get("access_token_expiry_minutes", 60)),
+        expires_minutes=int(security_config.get("access_token_expiry_minutes", 1440)),
     )
     refresh_token, refresh_expires_at = create_refresh_token(
         user.id,
-        expires_days=int(security_config.get("refresh_token_expiry_days", 7)),
+        expires_days=int(security_config.get("refresh_token_expiry_days", 30)),
     )
 
     db.add(RefreshTokenModel(

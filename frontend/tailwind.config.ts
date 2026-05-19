@@ -5,23 +5,23 @@ export default {
   theme: {
     extend: {
       colors: {
-        // ── Binance-reference dark palette ─────────────────────────
-        canvas: '#0b0e11', // page background — flat, NO gradient
-        card: '#1e2329', // cards, panels, modals, aside nav
-        elevated: '#2b3139', // table headers, dropdowns, dividers
-        primary: '#fcd535', // ALL CTAs, active nav, brand
-        'primary-hover': '#f0b90b', // button hover/active
-        'primary-disabled': '#3a3a1f', // disabled CTA background
-        ink: '#181a20', // text ON primary (on yellow buttons)
-        body: '#eaecef', // primary text on dark surfaces
-        muted: '#707a8a', // labels, secondary text, placeholders
-        'muted-strong': '#929aa5', // strong muted, icon hints
-        border: '#2b3139', // all borders on dark (hairline)
-        up: '#0ecb81', // success, online, positive delta
-        down: '#f6465d', // error, offline, negative delta
-        info: '#3b82f6', // info badges, help indicators
-        'on-primary': '#181a20', // same as ink — text on yellow
-        'on-dark': '#ffffff' // white text
+        canvas: 'rgb(var(--color-canvas) / <alpha-value>)',
+        card: 'rgb(var(--color-card) / <alpha-value>)',
+        elevated: 'rgb(var(--color-elevated) / <alpha-value>)',
+        primary: 'rgb(var(--color-primary) / <alpha-value>)',
+        'primary-hover': 'rgb(var(--color-primary-hover) / <alpha-value>)',
+        'primary-disabled':
+          'rgb(var(--color-primary-disabled) / <alpha-value>)',
+        ink: 'rgb(var(--color-ink) / <alpha-value>)',
+        body: 'rgb(var(--color-body) / <alpha-value>)',
+        muted: 'rgb(var(--color-muted) / <alpha-value>)',
+        'muted-strong': 'rgb(var(--color-muted-strong) / <alpha-value>)',
+        border: 'rgb(var(--color-border) / <alpha-value>)',
+        up: 'rgb(var(--color-up) / <alpha-value>)',
+        down: 'rgb(var(--color-down) / <alpha-value>)',
+        info: 'rgb(var(--color-info) / <alpha-value>)',
+        'on-primary': 'rgb(var(--color-ink) / <alpha-value>)',
+        'on-dark': 'rgb(var(--color-on-dark) / <alpha-value>)'
       },
       borderRadius: {
         xs: '2px',
@@ -32,7 +32,6 @@ export default {
         pill: '9999px'
       },
       boxShadow: {
-        // ONLY focus rings — NO surface shadows
         'ring-primary': '0 0 0 2px rgba(252,213,53,0.25)',
         'ring-up': '0 0 0 2px rgba(14,203,129,0.25)',
         'ring-down': '0 0 0 2px rgba(246,70,93,0.25)',

@@ -23,7 +23,18 @@
   let signature = '';
   let expanded = false;
 
+  function cssColor(name: string, fallback: string) {
+    const value = getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      .trim();
+    return value ? `rgb(${value})` : fallback;
+  }
+
   function chartConfig() {
+    const body = cssColor('--color-body', '#eaecef');
+    const muted = cssColor('--color-muted', '#707a8a');
+    const border = cssColor('--color-border', '#2b3139');
+
     return {
       type: chartType,
       data: {
@@ -48,7 +59,7 @@
         plugins: {
           legend: {
             position: 'bottom',
-            labels: { boxWidth: 10, usePointStyle: true, color: '#eaecef' }
+            labels: { boxWidth: 10, usePointStyle: true, color: body }
           }
         },
         scales:
@@ -57,14 +68,14 @@
             : {
                 x: {
                   grid: { display: horizontal },
-                  ticks: { color: '#707a8a' },
-                  border: { color: '#2b3139' }
+                  ticks: { color: muted },
+                  border: { color: border }
                 },
                 y: {
                   beginAtZero: true,
-                  grid: { color: '#2b3139', display: !horizontal },
-                  ticks: { color: '#707a8a' },
-                  border: { color: '#2b3139' }
+                  grid: { color: border, display: !horizontal },
+                  ticks: { color: muted },
+                  border: { color: border }
                 }
               }
       }
@@ -95,7 +106,13 @@
     expandedChart = null;
   }
 
-  onMount(render);
+  onMount(() => {
+    render();
+    window.addEventListener('cleanplates:theme-change', render);
+    return () => {
+      window.removeEventListener('cleanplates:theme-change', render);
+    };
+  });
 
   afterUpdate(() => {
     const next = JSON.stringify({ chartType, labels, datasets });

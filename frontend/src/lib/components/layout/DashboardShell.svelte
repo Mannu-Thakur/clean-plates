@@ -33,6 +33,10 @@
           item.href !== '/dashboard')
     )?.label ?? 'Dashboard';
 
+  $: if ($auth.ready && !$auth.user) {
+    void goto(`/login?next=${encodeURIComponent($page.url.pathname)}`);
+  }
+
   onMount(() => {
     const handleNotificationRefresh = () => {
       void loadUnreadCount();
@@ -87,14 +91,14 @@
 
 <ToastHost />
 
-{#if $auth.user}
+{#if $auth.ready && $auth.user}
   <div
     class="min-h-screen bg-canvas text-body lg:grid"
     class:lg:grid-cols-[76px_minmax(0,1fr)]={collapsed}
     class:lg:grid-cols-[260px_minmax(0,1fr)]={!collapsed}
   >
     <aside
-      class={`fixed inset-y-0 left-0 z-40 flex w-[260px] transform flex-col border-r border-border bg-card transition lg:static lg:w-auto lg:translate-x-0 ${
+      class={`fixed inset-y-0 left-0 z-40 flex w-[260px] transform flex-col border-r border-border bg-card transition lg:sticky lg:top-0 lg:h-screen lg:w-auto lg:translate-x-0 ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >

@@ -54,6 +54,7 @@
   let schedules: ReportSchedule[] = [];
   let generateOpen = false;
   let submitting = false;
+  let downloadingReports = new Set<string>();
   let filters: ReportFilters = defaultFilters();
   let form = defaultForm();
   let pollHandle: ReturnType<typeof setInterval> | null = null;
@@ -214,6 +215,8 @@
   }
 
   async function downloadReport(report: ReportItem) {
+    if (!canDownload(report) || downloadingReports.has(report.id)) return;
+    downloadingReports = new Set(downloadingReports).add(report.id);
     try {
       await api.download(
         `/reports/${report.id}/download`,
@@ -224,6 +227,10 @@
         err instanceof Error ? err.message : 'Could not download report.',
         'error'
       );
+    } finally {
+      const next = new Set(downloadingReports);
+      next.delete(report.id);
+      downloadingReports = next;
     }
   }
 
@@ -373,12 +380,12 @@
           <Button
             size="sm"
             variant="secondary"
-            disabled={!canDownload(report)}
+            disabled={!canDownload(report) || downloadingReports.has(report.id)}
             on:click={() => downloadReport(report)}
             id={`btn-download-report-${report.id}`}
           >
             <Download size={14} />
-            Download
+            {downloadingReports.has(report.id) ? 'Downloading...' : 'Download'}
           </Button>
         </svelte:fragment>
 

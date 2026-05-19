@@ -24,6 +24,11 @@
   import Toggle from '$lib/components/ui/Toggle.svelte';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import { auth } from '$lib/stores/auth';
+  import {
+    applyTheme,
+    normalizeTheme,
+    readStoredTheme
+  } from '$lib/stores/theme';
   import { notify } from '$lib/stores/toast';
   import {
     dateTime,
@@ -67,7 +72,7 @@
   type AppearanceConfig = {
     theme: string;
     logo_path?: string | null;
-    primary_color: string;
+    primary_color?: string;
     institution_display_name?: string | null;
   };
   type SystemInfo = {
@@ -96,20 +101,20 @@
     'staff_operator'
   ];
   const defaultSecurity: SecurityConfig = {
-    access_token_expiry_minutes: 60,
-    refresh_token_expiry_days: 7,
+    access_token_expiry_minutes: 1440,
+    refresh_token_expiry_days: 30,
     min_password_length: 8,
     require_uppercase: true,
     require_numbers: true,
     max_login_attempts: 5,
     lockout_duration_minutes: 15,
-    session_timeout_minutes: 120
+    session_timeout_minutes: 1440
   };
   const defaultAppearance: AppearanceConfig = {
     theme: 'dark',
     logo_path: null,
     primary_color: '#fcd535',
-    institution_display_name: 'CleanPlates'
+    institution_display_name: null
   };
 
   let activeTab: SettingsTab = 'users';
@@ -123,6 +128,8 @@
   let appearance: AppearanceConfig = { ...defaultAppearance };
   let systemInfo: SystemInfo = {};
   let logoFile: File | null = null;
+  let uploadingLogo = false;
+  let logoUploadKey = 0;
   let restoreFile: File | null = null;
   let userModalOpen = false;
   let editingUser: SettingsUser | null = null;
@@ -163,12 +170,17 @@
   }
 
   async function fetchAppearance() {
-    appearance = {
+    const remoteAppearance = {
       ...defaultAppearance,
       ...(await api
         .get<AppearanceConfig>('/settings/appearance')
         .catch(() => ({})))
     };
+    appearance = {
+      ...remoteAppearance,
+      theme: readStoredTheme() ?? normalizeTheme(remoteAppearance.theme)
+    };
+    applyTheme(appearance.theme);
   }
 
   async function fetchSystemInfo() {
@@ -355,8 +367,14 @@
   async function saveAppearance() {
     saving = true;
     try {
-      await api.patch('/settings/appearance', appearance);
-      notify('Appearance saved.', 'success');
+      await api.patch('/settings/appearance', {
+        ...appearance,
+        theme: normalizeTheme(appearance.theme),
+        primary_color: appearance.primary_color ?? defaultAppearance.primary_color,
+        institution_display_name: null
+      });
+      applyTheme(appearance.theme);
+      notify('Theme saved.', 'success');
       await fetchAppearance();
     } catch (err) {
       notify(
@@ -368,25 +386,29 @@
     }
   }
 
-  async function uploadLogo() {
-    if (!logoFile) {
+  async function uploadLogo(file = logoFile) {
+    if (!file) {
       notify('Choose a logo file first.', 'error');
       return;
     }
+    uploadingLogo = true;
     try {
       const result = await api.upload<{ logo_url: string }>(
         '/settings/appearance/logo',
         'image_file',
-        logoFile
+        file
       );
       appearance = { ...appearance, logo_path: result.logo_url };
       logoFile = null;
+      logoUploadKey += 1;
       notify('Logo uploaded.', 'success');
     } catch (err) {
       notify(
         err instanceof Error ? err.message : 'Could not upload logo.',
         'error'
       );
+    } finally {
+      uploadingLogo = false;
     }
   }
 
@@ -433,6 +455,11 @@
 
   function setSecurity(patch: Partial<SecurityConfig>) {
     security = { ...security, ...patch };
+  }
+
+  function setAppearanceTheme(theme: string) {
+    appearance = { ...appearance, theme };
+    applyTheme(theme);
   }
 
   function formatSeconds(seconds: number | undefined) {
@@ -789,53 +816,46 @@
           </Button>
         </div>
       {:else}
-        <div class="grid gap-5 lg:grid-cols-[1fr_320px]">
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(260px,360px)]">
           <div class="space-y-4">
-            <label>
-              <span class="form-label">Display name</span>
-              <input
-                class="input-field"
-                bind:value={appearance.institution_display_name}
+            <div class="rounded-lg border border-border bg-elevated p-4">
+              <Toggle
+                value={appearance.theme === 'dark'}
+                label={appearance.theme === 'dark' ? 'Dark mode' : 'Light mode'}
+                onChange={(value) =>
+                  setAppearanceTheme(value ? 'dark' : 'light')}
               />
-            </label>
-            <label>
-              <span class="form-label">Theme</span>
-              <select class="select-field" bind:value={appearance.theme}>
-                <option value="dark">Dark</option>
-                <option value="light">Light</option>
-              </select>
-            </label>
-            <label>
-              <span class="form-label">Primary color</span>
-              <input
-                class="input-field"
-                bind:value={appearance.primary_color}
-              />
-            </label>
+            </div>
             <div
               class="rounded-lg border border-primary/30 bg-primary/10 p-4 text-sm text-primary"
             >
-              The active dashboard theme is fixed to the Binance reference
-              colors; saved appearance values are kept for branded exports and
-              login surfaces.
+              Theme changes apply immediately. Save to keep this preference for
+              future sessions.
             </div>
-            <div class="flex justify-end">
+            <div class="flex justify-end sm:justify-start">
               <Button
                 on:click={saveAppearance}
                 disabled={saving}
                 id="btn-save-appearance"
               >
-                <Save size={16} />Save appearance
+                <Save size={16} />Save theme
               </Button>
             </div>
           </div>
           <div class="space-y-4">
-            <FileUpload
-              accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
-              maxSizeMb={5}
-              label="Upload institution logo"
-              onSelect={(file) => (logoFile = file)}
-            />
+            {#key logoUploadKey}
+              <FileUpload
+                accept=".png,.jpg,.jpeg,.webp,.gif,.svg"
+                maxSizeMb={5}
+                label="Upload institution logo"
+                uploading={uploadingLogo}
+                onSelect={(file) => {
+                  logoFile = file;
+                  uploadLogo(file);
+                }}
+                onClear={() => (logoFile = null)}
+              />
+            {/key}
             {#if appearance.logo_path}
               <img
                 class="h-24 w-24 rounded-lg border border-border bg-elevated object-contain p-2"
@@ -843,14 +863,6 @@
                 alt="Institution logo"
               />
             {/if}
-            <Button
-              variant="secondary"
-              on:click={uploadLogo}
-              disabled={!logoFile}
-              id="btn-upload-logo"
-            >
-              <Upload size={16} />Upload logo
-            </Button>
           </div>
         </div>
       {/if}

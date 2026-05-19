@@ -141,5 +141,16 @@ class DeliveryStatusSchema(BaseModel):
     deliveries: list[DeliveryStatusItemSchema]
 
 
+class NotificationPreferenceSchema(BaseModel):
+    type: str = Field(min_length=1, max_length=30)
+    dashboard: bool = True
+    email: bool = True
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _clean_type(cls, value: str) -> str:
+        return _strip(value).lower() if isinstance(value, str) else value
+
+
 class PaginatedNotifications(PaginatedBase):
     items: list[NotificationSchema]

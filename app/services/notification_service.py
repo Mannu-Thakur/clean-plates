@@ -24,11 +24,20 @@ from app.schemas.notifications import (
     NotifStatsSchema,
     NotificationCreateSchema,
     NotificationDetailSchema,
+    NotificationPreferenceSchema,
     NotificationSchema,
     PaginatedNotifications,
     ScheduleNotifSchema,
 )
-from app.services import audit_service, email_service
+from app.services import audit_service, config_service, email_service
+
+DEFAULT_NOTIFICATION_PREFERENCES = [
+    {"type": "warning", "dashboard": True, "email": True},
+    {"type": "penalty", "dashboard": True, "email": True},
+    {"type": "alert", "dashboard": True, "email": True},
+    {"type": "system", "dashboard": True, "email": False},
+    {"type": "custom", "dashboard": True, "email": True},
+]
 
 
 @dataclass(slots=True)
@@ -72,6 +81,18 @@ def _notification_state(notification: NotificationModel) -> dict[str, Any]:
         "recipient_ids": notification.recipient_ids,
         "scheduled_at": notification.scheduled_at.isoformat() if notification.scheduled_at else None,
     }
+
+
+def _normalize_preferences(rows: list[dict[str, Any]] | None) -> list[NotificationPreferenceSchema]:
+    by_type = {
+        str(row.get("type", "")).strip().lower(): row
+        for row in rows or []
+        if str(row.get("type", "")).strip()
+    }
+    return [
+        NotificationPreferenceSchema.model_validate({**fallback, **by_type.get(fallback["type"], {})})
+        for fallback in DEFAULT_NOTIFICATION_PREFERENCES
+    ]
 
 
 async def _notification_or_404(db: AsyncSession, notification_id: str) -> NotificationModel:
@@ -242,12 +263,18 @@ def _apply_notification_filters(
     tab: str | None = None,
     type_filter: str | None = None,
     channel: str | None = None,
+    status_filter: str | None = None,
+    is_read: bool | None = None,
 ):
     stmt = stmt.where(NotificationModel.is_deleted.is_(False))
     if type_filter:
         stmt = stmt.where(NotificationModel.type == type_filter.strip().lower())
     if channel:
         stmt = stmt.where(NotificationModel.channel == channel.strip().lower())
+    if status_filter:
+        stmt = stmt.where(NotificationModel.status == status_filter.strip().lower())
+    if is_read is not None:
+        stmt = stmt.where(NotificationModel.is_read.is_(is_read))
     normalized_tab = (tab or "").strip().lower()
     if normalized_tab == "inbox":
         stmt = stmt.where(NotificationModel.is_read.is_(False), NotificationModel.status.in_(("sent", "partial")))
@@ -268,6 +295,8 @@ async def list_notifications(
     tab: str | None = None,
     type_filter: str | None = None,
     channel: str | None = None,
+    status_filter: str | None = None,
+    is_read: bool | None = None,
     page: int = 1,
     size: int = 20,
 ) -> PaginatedNotifications:
@@ -278,6 +307,8 @@ async def list_notifications(
         tab=tab,
         type_filter=type_filter,
         channel=channel,
+        status_filter=status_filter,
+        is_read=is_read,
     )
     total = int((await db.execute(count_stmt)).scalar_one() or 0)
     stmt = _apply_notification_filters(
@@ -285,6 +316,8 @@ async def list_notifications(
         tab=tab,
         type_filter=type_filter,
         channel=channel,
+        status_filter=status_filter,
+        is_read=is_read,
     )
     stmt = stmt.order_by(NotificationModel.created_at.desc()).offset((page - 1) * size).limit(size)
     result = await db.execute(stmt)
@@ -295,6 +328,39 @@ async def list_notifications(
         pages=math.ceil(total / size) if total else 0,
         items=[NotificationSchema.model_validate(notification) for notification in result.scalars().all()],
     )
+
+
+async def get_preferences(db: AsyncSession) -> list[NotificationPreferenceSchema]:
+    config = await config_service.get_config(db, "notification_preferences")
+    rows = config.get("items") if isinstance(config, dict) else None
+    return _normalize_preferences(rows if isinstance(rows, list) else None)
+
+
+async def update_preferences(
+    db: AsyncSession,
+    rows: list[NotificationPreferenceSchema],
+    *,
+    current_user: UserSchema,
+) -> list[NotificationPreferenceSchema]:
+    before = [item.model_dump() for item in await get_preferences(db)]
+    after = [item.model_dump() for item in _normalize_preferences([row.model_dump() for row in rows])]
+    await config_service.set_config(
+        db,
+        "notification_preferences",
+        {"items": after},
+        updated_by=current_user.id,
+    )
+    await audit_service.log(
+        db,
+        event_type="notification.preferences_updated",
+        action="update",
+        resource_type="notification",
+        summary="Updated notification preferences",
+        before_state={"items": before},
+        after_state={"items": after},
+        **_audit_user(current_user),
+    )
+    return [NotificationPreferenceSchema.model_validate(item) for item in after]
 
 
 async def get_notification(db: AsyncSession, notification_id: str) -> NotificationDetailSchema:

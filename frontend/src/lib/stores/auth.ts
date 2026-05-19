@@ -61,15 +61,32 @@ export function initAuth() {
         tokens: updated?.tokens ?? session.tokens,
         error: null
       });
-    } catch (error) {
-      clearStoredSession();
-      auth.set({
-        ready: true,
-        loading: false,
-        user: null,
-        tokens: null,
-        error: error instanceof Error ? error.message : 'Session expired'
-      });
+    } catch {
+      // api.get already attempted token refresh internally on 401.
+      // If we still failed, the refresh token is also invalid — clear session.
+      const stillValid = readStoredSession();
+      if (stillValid) {
+        // The request() interceptor refreshed tokens successfully but the
+        // retry still failed for another reason. Keep the session and
+        // use the cached user rather than logging out.
+        auth.set({
+          ready: true,
+          loading: false,
+          user: stillValid.user,
+          tokens: stillValid.tokens,
+          error: null
+        });
+      } else {
+        auth.set({
+          ready: true,
+          loading: false,
+          user: null,
+          tokens: null,
+          error: 'Session expired'
+        });
+      }
+      // Reset so next navigation can retry
+      initPromise = null;
     }
   })();
   return initPromise;
@@ -88,6 +105,8 @@ export async function login(
       { skipAuth: true }
     );
     persistSession(response.tokens, response.user, remember);
+    // Reset initPromise so next initAuth() re-validates with the fresh token
+    initPromise = null;
     auth.set({
       ready: true,
       loading: false,

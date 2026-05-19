@@ -25,8 +25,8 @@ class Settings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379"
 
     # ── JWT ──────────────────────────────────────────
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 30
 
     # ── Security ─────────────────────────────────────
     MAX_LOGIN_ATTEMPTS: int = 5

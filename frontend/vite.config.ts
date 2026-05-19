@@ -10,21 +10,17 @@ export default defineConfig({
     strictPort: false,
     proxy: {
       '/api': {
-        target: backend,
-        changeOrigin: true
+        target: backend
       },
       '/static': {
-        target: backend,
-        changeOrigin: true
+        target: backend
       },
       '/health': {
-        target: backend,
-        changeOrigin: true
+        target: backend
       },
       '/ws': {
         target: backend.replace(/^http/, 'ws'),
-        ws: true,
-        changeOrigin: true
+        ws: true
       }
     }
   }

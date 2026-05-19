@@ -69,14 +69,14 @@ CONFIG_SECTIONS = {
         ],
     },
     "security": {
-        "access_token_expiry_minutes": 60,
-        "refresh_token_expiry_days": 7,
+        "access_token_expiry_minutes": 1440,
+        "refresh_token_expiry_days": 30,
         "min_password_length": 8,
         "require_uppercase": True,
         "require_numbers": True,
         "max_login_attempts": 5,
         "lockout_duration_minutes": 15,
-        "session_timeout_minutes": 120,
+        "session_timeout_minutes": 1440,
     },
 }
 

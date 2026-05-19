@@ -129,9 +129,45 @@
     1,
     thresholds.penalty_threshold_grams - thresholds.warning_threshold_grams
   );
-  $: dirtyCount = (Object.keys(snapshots) as ConfigSection[]).filter(
-    (section) => isDirty(section)
+  $: sectionDirty = {
+    institution: snapshots.institution !== JSON.stringify(institution),
+    thresholds: snapshots.thresholds !== JSON.stringify(thresholds),
+    meals: snapshots.meals !== JSON.stringify(meals),
+    branches: snapshots.branches !== JSON.stringify(branches)
+  };
+  $: sectionValid = {
+    institution:
+      institution.name.trim().length > 0 &&
+      institution.code.trim().length > 0,
+    thresholds:
+      Number(thresholds.penalty_threshold_grams) >=
+        Number(thresholds.warning_threshold_grams) &&
+      Number(thresholds.waste_threshold_grams) >= 0 &&
+      Number(thresholds.improvement_target_pct) >= 0 &&
+      Number(thresholds.improvement_target_pct) <= 100 &&
+      Number(thresholds.reset_duration_days) >= 1 &&
+      Number(thresholds.warning_count_for_penalty) >= 1,
+    meals: !meals.some(
+      (meal) => !meal.display_name.trim() || meal.start_time >= meal.end_time
+    ),
+    branches: !branches.some(
+      (item) => !item.code.trim() || !item.name.trim()
+    )
+  };
+  $: dirtyCount = (Object.keys(sectionDirty) as ConfigSection[]).filter(
+    (section) => sectionDirty[section]
   ).length;
+  $: canSaveActive =
+    !loading &&
+    !saving[activeTab] &&
+    sectionDirty[activeTab] &&
+    sectionValid[activeTab];
+  $: canSaveAll =
+    dirtyCount > 0 &&
+    !loading &&
+    (Object.keys(sectionDirty) as ConfigSection[]).every(
+      (section) => !sectionDirty[section] || sectionValid[section]
+    );
 
   function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
@@ -149,7 +185,11 @@
   }
 
   function isDirty(section: ConfigSection) {
-    return snapshots[section] !== JSON.stringify(payload(section));
+    return sectionDirty[section];
+  }
+
+  function isValid(section: ConfigSection) {
+    return sectionValid[section];
   }
 
   function payload(section: ConfigSection) {
@@ -207,33 +247,22 @@
   }
 
   function validateSection(section: ConfigSection) {
-    if (section === 'institution' && (!institution.name || !institution.code)) {
+    if (section === 'institution' && !isValid(section)) {
       notify('Institution name and code are required.', 'error');
       return false;
     }
-    if (
-      section === 'thresholds' &&
-      thresholds.penalty_threshold_grams < thresholds.warning_threshold_grams
-    ) {
+    if (section === 'thresholds' && !isValid(section)) {
       notify(
         'Penalty threshold must be greater than warning threshold.',
         'error'
       );
       return false;
     }
-    if (
-      section === 'meals' &&
-      meals.some(
-        (meal) => !meal.display_name || meal.start_time >= meal.end_time
-      )
-    ) {
+    if (section === 'meals' && !isValid(section)) {
       notify('Every meal needs a label and a valid time window.', 'error');
       return false;
     }
-    if (
-      section === 'branches' &&
-      branches.some((item) => !item.code || !item.name)
-    ) {
+    if (section === 'branches' && !isValid(section)) {
       notify('Every branch needs a code and name.', 'error');
       return false;
     }
@@ -245,7 +274,17 @@
     saving = { ...saving, [section]: true };
     try {
       if (section === 'institution') {
-        await api.patch('/config/institution', { data: institution });
+        await api.patch('/config/institution', {
+          data: {
+            ...institution,
+            name: institution.name.trim(),
+            code: institution.code.trim(),
+            address: institution.address?.trim() || undefined,
+            phone: institution.phone?.trim() || undefined,
+            email: institution.email?.trim() || undefined,
+            website: institution.website?.trim() || undefined
+          }
+        });
       } else if (section === 'thresholds') {
         await api.patch('/config/thresholds', thresholds);
       } else if (section === 'meals') {
@@ -338,7 +377,7 @@
     </Button>
     <Button
       on:click={saveAll}
-      disabled={dirtyCount === 0 || loading}
+      disabled={!canSaveAll}
       id="btn-save-all-config"
     >
       <Save size={16} />Save all
@@ -381,7 +420,7 @@
         </Button>
         <Button
           on:click={() => saveSection(activeTab)}
-          disabled={loading || saving[activeTab] || !isDirty(activeTab)}
+          disabled={!canSaveActive}
           id={`btn-save-${activeTab}`}
         >
           <Save size={16} />Save

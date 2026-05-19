@@ -13,7 +13,7 @@
     Users
   } from '@lucide/svelte';
   import { api } from '$lib/api/client';
-  import type { KpiOverview } from '$lib/api/types';
+  import type { KpiOverview, ReportItem } from '$lib/api/types';
   import { ReconnectingSocket } from '$lib/api/ws';
   import PageHeader from '$lib/components/layout/PageHeader.svelte';
   import Button from '$lib/components/ui/Button.svelte';
@@ -92,15 +92,23 @@
 
   async function exportOverview() {
     try {
-      await api.post('/reports/generate', {
+      const report = await api.post<ReportItem>('/reports/generate', {
         type: 'overview',
         format: 'pdf',
         filters: { period }
       });
-      notify('Overview report generation queued.', 'success');
+      if (report.status === 'ready') {
+        await api.download(
+          `/reports/${report.id}/download`,
+          `overview-${period}.${report.format === 'excel' ? 'xlsx' : report.format}`
+        );
+        notify('Overview report downloaded.', 'success');
+      } else {
+        notify('Overview report is generating. Download it from Reports when ready.', 'success');
+      }
     } catch (err) {
       notify(
-        err instanceof Error ? err.message : 'Could not queue report.',
+        err instanceof Error ? err.message : 'Could not export overview.',
         'error'
       );
     }
