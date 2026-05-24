@@ -197,6 +197,28 @@ async function parseResponse(response: Response) {
   return response.text();
 }
 
+function defaultErrorMessage(status: number) {
+  if (status >= 500) {
+    return 'Backend is unavailable. Please try again after the server is running.';
+  }
+  return `Request failed with status ${status}`;
+}
+
+function responseDetail(parsed: unknown) {
+  return typeof parsed === 'object' && parsed !== null && 'detail' in parsed
+    ? (parsed as Dict).detail
+    : parsed;
+}
+
+function responseErrorMessage(status: number, parsed: unknown) {
+  const detail = responseDetail(parsed);
+  if (typeof detail === 'string') {
+    const message = detail.trim();
+    return message || defaultErrorMessage(status);
+  }
+  return defaultErrorMessage(status);
+}
+
 async function performRefreshStoredSession(): Promise<boolean> {
   const session = readStoredSession();
   if (!session?.tokens.refresh_token) return false;
@@ -265,12 +287,21 @@ async function request<T>(
   const token = getAccessToken();
   if (!skipAuth && token) headers.set('Authorization', `Bearer ${token}`);
 
-  const response = await fetch(buildUrl(path, query), {
-    ...rest,
-    method: rest.method ?? (body === undefined ? 'GET' : 'POST'),
-    headers,
-    body: bodyPayload(body)
-  });
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, query), {
+      ...rest,
+      method: rest.method ?? (body === undefined ? 'GET' : 'POST'),
+      headers,
+      body: bodyPayload(body)
+    });
+  } catch (error) {
+    throw new ApiError(
+      0,
+      'Backend is unavailable. Please try again after the server is running.',
+      error
+    );
+  }
 
   if (response.status === 401 && !skipAuth && retryOnUnauthorized) {
     const refreshed = await refreshStoredSession();
@@ -280,14 +311,7 @@ async function request<T>(
 
   const parsed = await parseResponse(response);
   if (!response.ok) {
-    const detail =
-      typeof parsed === 'object' && parsed !== null && 'detail' in parsed
-        ? (parsed as Dict).detail
-        : parsed;
-    const message =
-      typeof detail === 'string'
-        ? detail
-        : `Request failed with status ${response.status}`;
+    const message = responseErrorMessage(response.status, parsed);
     throw new ApiError(response.status, message, parsed);
   }
 
@@ -340,10 +364,7 @@ export const api = {
 
     if (!response.ok) {
       const parsed = await parseResponse(response);
-      const message =
-        typeof parsed === 'object' && parsed !== null && 'detail' in parsed
-          ? String((parsed as Dict).detail)
-          : `Download failed with status ${response.status}`;
+      const message = responseErrorMessage(response.status, parsed);
       throw new ApiError(response.status, message, parsed);
     }
     const blob = await response.blob();

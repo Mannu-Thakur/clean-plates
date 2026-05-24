@@ -26,6 +26,14 @@
   let resetEmail = '';
   let submitting = false;
   let health: 'checking' | 'online' | 'offline' = 'checking';
+  const loginSlogans = [
+    'Waste less. Serve smarter.',
+    'Every plate tells a planning story.',
+    'Measure meals. Improve tomorrow.',
+    'Cleaner plates. Clearer decisions.',
+    'Food saved is value protected.'
+  ];
+  const rollingSlogans = [...loginSlogans, ...loginSlogans];
 
   $: expired = $page.url.searchParams.get('expired') === '1';
 
@@ -135,6 +143,14 @@
         Review live waste entries, student patterns, devices, reports, and
         enforcement rules from one connected control center.
       </p>
+
+      <div class="slogan-rail mt-8" aria-label={loginSlogans.join(' ')}>
+        <div class="slogan-track" aria-hidden="true">
+          {#each rollingSlogans as slogan}
+            <span class="slogan-chip">{slogan}</span>
+          {/each}
+        </div>
+      </div>
     </div>
 
     <div class="grid grid-cols-3 gap-3 text-sm">
@@ -153,7 +169,9 @@
     </div>
   </section>
 
-  <section class="flex min-h-screen items-center justify-center px-4 py-10">
+  <section
+    class="flex min-h-screen flex-col items-center justify-center px-4 py-10"
+  >
     <div class="card w-full max-w-md p-6 sm:p-8">
       {#if expired}
         <div
@@ -283,5 +301,78 @@
         </form>
       {/if}
     </div>
+
+    <div
+      class="slogan-rail mt-5 w-full max-w-md lg:hidden"
+      aria-label={loginSlogans.join(' ')}
+    >
+      <div class="slogan-track" aria-hidden="true">
+        {#each rollingSlogans as slogan}
+          <span class="slogan-chip">{slogan}</span>
+        {/each}
+      </div>
+    </div>
   </section>
 </main>
+
+<style>
+  .slogan-rail {
+    overflow: hidden;
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 999px;
+    background: rgb(var(--color-elevated) / 0.72);
+    contain: paint;
+  }
+
+  .slogan-track {
+    display: flex;
+    width: max-content;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    animation: slogan-roll 36s linear infinite;
+    will-change: transform;
+  }
+
+  .slogan-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.75rem;
+    white-space: nowrap;
+    border: 1px solid rgb(var(--color-border));
+    border-radius: 999px;
+    padding: 0.25rem 0.85rem;
+    color: rgb(var(--color-muted-strong));
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .slogan-chip::before {
+    content: '';
+    width: 0.375rem;
+    height: 0.375rem;
+    margin-right: 0.5rem;
+    border-radius: 999px;
+    background: rgb(var(--color-primary));
+  }
+
+  .slogan-rail:hover .slogan-track {
+    animation-play-state: paused;
+  }
+
+  @keyframes slogan-roll {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .slogan-track {
+      animation: none;
+      transform: none;
+    }
+  }
+</style>

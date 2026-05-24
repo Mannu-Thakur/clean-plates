@@ -62,8 +62,8 @@
 
   function reset() {
     draft = {};
-    onReset?.();
-    onFilter(draft);
+    if (onReset) onReset();
+    else onFilter(draft);
   }
 </script>
 

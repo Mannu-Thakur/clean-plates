@@ -10,6 +10,7 @@
     RefreshCw,
     Scale,
     TrendingDown,
+    Utensils,
     Users
   } from '@lucide/svelte';
   import { api } from '$lib/api/client';
@@ -30,6 +31,93 @@
   let error = '';
   let wsStatus = 'closed';
   let socket: ReconnectingSocket | null = null;
+
+  type MealSlot = 'breakfast' | 'lunch' | 'dinner';
+  type WeeklyMenuDay = {
+    day: string;
+    short: string;
+    meals: Record<MealSlot, string[]>;
+  };
+
+  const mealSlots: Array<{ key: MealSlot; label: string }> = [
+    { key: 'breakfast', label: 'Breakfast' },
+    { key: 'lunch', label: 'Lunch' },
+    { key: 'dinner', label: 'Dinner' }
+  ];
+
+  const weeklyMenu: WeeklyMenuDay[] = [
+    {
+      day: 'Monday',
+      short: 'Mon',
+      meals: {
+        breakfast: ['Idli', 'Sambar', 'Coconut chutney'],
+        lunch: ['Chapati', 'Dal tadka', 'Aloo gobi', 'Curd'],
+        dinner: ['Jeera rice', 'Rajma', 'Mixed veg', 'Salad']
+      }
+    },
+    {
+      day: 'Tuesday',
+      short: 'Tue',
+      meals: {
+        breakfast: ['Poha', 'Boiled egg', 'Tea'],
+        lunch: ['Rice', 'Sambar', 'Beans poriyal', 'Papad'],
+        dinner: ['Chapati', 'Paneer curry', 'Dal fry', 'Fruit']
+      }
+    },
+    {
+      day: 'Wednesday',
+      short: 'Wed',
+      meals: {
+        breakfast: ['Upma', 'Peanut chutney', 'Banana'],
+        lunch: ['Veg pulao', 'Raita', 'Chana masala', 'Salad'],
+        dinner: ['Rice', 'Rasam', 'Potato fry', 'Curd']
+      }
+    },
+    {
+      day: 'Thursday',
+      short: 'Thu',
+      meals: {
+        breakfast: ['Dosa', 'Sambar', 'Tomato chutney'],
+        lunch: ['Chapati', 'Dal makhani', 'Cabbage sabzi', 'Rice'],
+        dinner: ['Khichdi', 'Kadhi', 'Roasted papad', 'Pickle']
+      }
+    },
+    {
+      day: 'Friday',
+      short: 'Fri',
+      meals: {
+        breakfast: ['Aloo paratha', 'Curd', 'Tea'],
+        lunch: ['Lemon rice', 'Vegetable kurma', 'Buttermilk', 'Salad'],
+        dinner: ['Chapati', 'Egg curry', 'Dal', 'Rice']
+      }
+    },
+    {
+      day: 'Saturday',
+      short: 'Sat',
+      meals: {
+        breakfast: ['Puri', 'Chana', 'Halwa'],
+        lunch: ['Rice', 'Fish curry', 'Dal', 'Seasonal veg'],
+        dinner: ['Veg noodles', 'Manchurian gravy', 'Soup']
+      }
+    },
+    {
+      day: 'Sunday',
+      short: 'Sun',
+      meals: {
+        breakfast: ['Masala dosa', 'Sambar', 'Coffee'],
+        lunch: ['Biryani', 'Raita', 'Paneer masala', 'Sweet'],
+        dinner: ['Chapati', 'Light dal', 'Vegetable stew', 'Fruit']
+      }
+    }
+  ];
+
+  const today = new Date();
+  const currentDayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1;
+  const weekStart = startOfWeek(today);
+  const weekEnd = addDays(weekStart, 6);
+  const currentWeekLabel = `${formatMenuDate(weekStart)} - ${formatMenuDate(
+    weekEnd
+  )}`;
 
   let overview: KpiOverview | null = null;
   let weekly: { data: Array<{ label: string; value: number }> } = { data: [] };
@@ -114,6 +202,34 @@
     }
   }
 
+  function startOfWeek(date: Date) {
+    const weekDate = new Date(date);
+    const day = weekDate.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    weekDate.setHours(0, 0, 0, 0);
+    weekDate.setDate(weekDate.getDate() + diff);
+    return weekDate;
+  }
+
+  function addDays(date: Date, days: number) {
+    const nextDate = new Date(date);
+    nextDate.setDate(nextDate.getDate() + days);
+    return nextDate;
+  }
+
+  function formatMenuDate(date: Date) {
+    return new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short'
+    }).format(date);
+  }
+
+  function scrollToWeeklyMenu() {
+    document
+      .getElementById('current-week-menu')
+      ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   onMount(() => {
     loadOverview();
     socket = new ReconnectingSocket(
@@ -170,6 +286,14 @@
     </Button>
     <Button
       variant="secondary"
+      on:click={scrollToWeeklyMenu}
+      id="btn-current-week-menu"
+    >
+      <Utensils size={16} />
+      Week menu
+    </Button>
+    <Button
+      variant="secondary"
       on:click={exportOverview}
       id="btn-export-overview"
     >
@@ -178,6 +302,67 @@
     </Button>
   </svelte:fragment>
 </PageHeader>
+
+<section id="current-week-menu" class="mb-5 scroll-mt-5">
+  <div class="mb-3 flex flex-wrap items-end justify-between gap-3">
+    <div>
+      <p class="label">Current week menu</p>
+      <h2 class="mt-1 text-lg font-semibold text-body">
+        Planned meals for {currentWeekLabel}
+      </h2>
+    </div>
+    <div
+      class="inline-flex items-center gap-2 rounded-full border border-border bg-elevated px-3 py-1.5 text-sm text-muted-strong"
+    >
+      <CalendarDays size={15} class="text-primary" />
+      {weeklyMenu[currentDayIndex].day}
+    </div>
+  </div>
+
+  <div class="-mx-1 overflow-x-auto pb-2">
+    <div class="grid min-w-[1540px] grid-cols-7 gap-3 px-1">
+      {#each weeklyMenu as menuDay, index}
+        <article
+          class={`rounded-lg border p-4 ${
+            index === currentDayIndex
+              ? 'border-primary bg-primary/5'
+              : 'border-border bg-card'
+          }`}
+        >
+          <div class="mb-4 flex items-start justify-between gap-2">
+            <div>
+              <p class="label">{menuDay.short}</p>
+              <h3 class="mt-1 text-base font-semibold text-body">
+                {menuDay.day}
+              </h3>
+              <p class="mt-1 text-xs text-muted">
+                {formatMenuDate(addDays(weekStart, index))}
+              </p>
+            </div>
+            {#if index === currentDayIndex}
+              <span class="badge-primary">Today</span>
+            {/if}
+          </div>
+
+          <div class="space-y-3">
+            {#each mealSlots as slot}
+              <div>
+                <p
+                  class="text-[11px] font-semibold uppercase tracking-wide text-muted"
+                >
+                  {slot.label}
+                </p>
+                <p class="mt-1 line-clamp-2 text-sm leading-5 text-muted-strong">
+                  {menuDay.meals[slot.key].join(', ')}
+                </p>
+              </div>
+            {/each}
+          </div>
+        </article>
+      {/each}
+    </div>
+  </div>
+</section>
 
 {#if error}
   <Card title="Dashboard unavailable" description={error}>

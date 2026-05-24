@@ -2,13 +2,21 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
-  import { Bell, Menu, PanelLeftClose, Power, Search } from '@lucide/svelte';
+  import {
+    Bell,
+    Menu,
+    PanelLeftClose,
+    PanelLeftOpen,
+    Power,
+    Search
+  } from '@lucide/svelte';
   import { api } from '$lib/api/client';
   import type { NotificationStats } from '$lib/api/types';
   import Button from '$lib/components/ui/Button.svelte';
   import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
   import ToastHost from '$lib/components/ui/ToastHost.svelte';
   import { auth, initAuth, logout } from '$lib/stores/auth';
+  import { notify } from '$lib/stores/toast';
   import { navItems } from './navigation';
   import { titleCase } from '$lib/utils/format';
 
@@ -25,6 +33,16 @@
   ].includes(role);
   $: unreadLabel = unreadCount > 99 ? '99+' : String(unreadCount);
   $: visibleNav = navItems.filter((item) => !role || item.roles.includes(role));
+  $: searchTerm = query.trim().toLowerCase();
+  $: navMatches = searchTerm
+    ? visibleNav
+        .filter(
+          (item) =>
+            item.label.toLowerCase().includes(searchTerm) ||
+            item.href.toLowerCase().includes(searchTerm)
+        )
+        .slice(0, 5)
+    : [];
   $: activeTitle =
     navItems.find(
       (item) =>
@@ -83,6 +101,21 @@
     await goto('/dashboard/notifications');
   }
 
+  async function jumpToNav(href: string) {
+    query = '';
+    await goto(href);
+  }
+
+  async function submitQuickNav() {
+    if (!searchTerm) return;
+    const match = navMatches[0];
+    if (!match) {
+      notify('No matching dashboard page.', 'warning');
+      return;
+    }
+    await jumpToNav(match.href);
+  }
+
   async function handleLogout() {
     await logout();
     await goto('/login');
@@ -123,10 +156,12 @@
         <button
           class="icon-btn hidden lg:inline-flex"
           type="button"
-          aria-label="Collapse navigation"
+          aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
           on:click={() => (collapsed = !collapsed)}
         >
-          <PanelLeftClose size={17} />
+          {#if collapsed}<PanelLeftOpen size={17} />{:else}<PanelLeftClose
+              size={17}
+            />{/if}
         </button>
       </div>
 
@@ -197,16 +232,42 @@
             {activeTitle}
           </h1>
         </div>
-        <label
-          class="hidden min-w-64 items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary lg:flex"
+        <form
+          class="relative hidden min-w-64 lg:block"
+          on:submit|preventDefault={submitQuickNav}
         >
-          <Search size={16} class="text-muted" />
-          <input
-            bind:value={query}
-            class="h-10 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
-            placeholder="Search current view"
-          />
-        </label>
+          <label
+            class="flex items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors focus-within:border-primary focus-within:shadow-ring-primary"
+          >
+            <Search size={16} class="text-muted" />
+            <input
+              bind:value={query}
+              class="h-10 min-w-0 flex-1 bg-transparent text-sm text-body outline-none placeholder:text-muted"
+              placeholder="Jump to page"
+              autocomplete="off"
+            />
+          </label>
+          {#if searchTerm}
+            <div
+              class="absolute left-0 right-0 top-12 z-30 overflow-hidden rounded-md border border-border bg-card"
+            >
+              {#if navMatches.length}
+                {#each navMatches as item}
+                  <button
+                    class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-body transition-colors hover:bg-elevated"
+                    type="button"
+                    on:click={() => jumpToNav(item.href)}
+                  >
+                    <svelte:component this={item.icon} size={15} />
+                    <span>{item.label}</span>
+                  </button>
+                {/each}
+              {:else}
+                <p class="px-3 py-2 text-sm text-muted">No page found</p>
+              {/if}
+            </div>
+          {/if}
+        </form>
         {#if canUseNotifications}
           <button
             class="icon-btn relative"

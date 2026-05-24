@@ -15,6 +15,8 @@
   let klass = '';
   export { klass as class };
 
+  $: hasEmptyOption = options.some((option) => option.value === '');
+
   function handleChange() {
     onChange(value);
   }
@@ -27,7 +29,7 @@
   on:change={handleChange}
   {...$$restProps}
 >
-  {#if placeholder}
+  {#if placeholder && !hasEmptyOption}
     <option value="" disabled>{placeholder}</option>
   {/if}
   {#each options as option}

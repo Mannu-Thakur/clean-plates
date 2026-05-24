@@ -5,11 +5,16 @@ __pycache__/
 dist/
 build/
 .pytest-tmp/
+.pytest_cache/
+.ruff_cache/
 .venv/
 venv/
 
 # Environment
 .env
+.env.*
+!.env.example
+!.env.*.example
 
 # Data
 data/
@@ -30,6 +35,7 @@ frontend/.svelte-kit/
 frontend/build/
 
 # IDE
+.codex/
 .vscode/
 .idea/
 

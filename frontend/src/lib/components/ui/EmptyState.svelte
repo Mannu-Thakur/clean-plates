@@ -2,8 +2,7 @@
   import { Inbox } from '@lucide/svelte';
 
   export let title = 'No records yet';
-  export let message =
-    'Data will appear here as soon as the backend returns records.';
+  export let message = 'Records will appear here when data is available.';
 </script>
 
 <div
