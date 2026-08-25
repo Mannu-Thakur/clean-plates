@@ -2,11 +2,30 @@
 Auth controller — thin layer dispatching to auth_service.
 
 Ref: 02-controllers.md §1
+
+Router
+   ↓
+auth_controller.py
+   ↓
+auth_service.py
+   ↓
+Database / Redis / background workers
+
+
+
+Handles API-level authentication operations.
+
+The controller takes login, logout, token, and password-reset requests
+and passes the required data to auth_service, where the actual auth
+logic is handled. It also returns the currently authenticated user.
+
+Router → Controller → auth_service
+
 """
 
 from __future__ import annotations
 
-from arq.connections import ArqRedis
+from arq.connections import ArqRedis  # Used for background jobs, specifically password-reset related work.
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
