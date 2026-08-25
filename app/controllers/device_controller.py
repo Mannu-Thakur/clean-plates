@@ -4,6 +4,24 @@ Device controller - thin dispatch layer over device_service.
 Ref: docs/plans/02-controllers.md section 2.
 """
 
+ # dispatch layer : 
+ #    request - > controller -> service
+
+    """
+    Handles API-level operations related to devices.
+    
+    The controller receives the request data and current user,
+    then passes it to device_service where the actual logic is handled.
+    It covers device registration, updates, health checks, syncing,
+    restarting, and decommissioning.
+    
+    Router → Controller → device_service
+    """
+
+
+
+
+
 from __future__ import annotations
 
 from arq.connections import ArqRedis
@@ -72,7 +90,19 @@ async def trigger_sync(
 ) -> QueuedSyncSchema:
     return await device_service.trigger_sync(db, device_id, current_user=current_user)
 
-
+// This suggests restarting something may involve a background task rather than performing the operation directly inside the HTTP request.
+# HTTP Request
+#      ↓
+# Controller
+#      ↓
+# Service
+#      ↓
+# ARQ / Redis
+#      ↓
+# Worker
+#      ↓
+# Restart device/service
+    
 async def restart_service(
     db: AsyncSession,
     device_id: str,
@@ -82,7 +112,7 @@ async def restart_service(
 ) -> None:
     await device_service.restart_service(db, device_id, current_user=current_user, arq_pool=arq_pool)
 
-
+// decomission: taking this device out of active operation
 async def decommission(
     db: AsyncSession,
     device_id: str,
