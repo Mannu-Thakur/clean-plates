@@ -1,4 +1,12 @@
 """Audit controller - thin dispatch layer."""
+"""
+Handles API-level operations related to audit logs.
+
+The controller passes audit-related requests to audit_service,
+where the actual logic is handled.
+
+Router → Controller → audit_service
+"""
 
 from __future__ import annotations
 
