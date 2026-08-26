@@ -1,5 +1,15 @@
 """Analytics controller - thin dispatch layer over analytics_service."""
 
+"""
+Handles API-level operations related to analytics.
+
+The controller receives the database session and any filters,
+then passes them to analytics_service where the actual analytics
+logic is handled. It provides data for overviews, trends, waste
+distribution, rankings, improvement tracking, and sustainability scores.
+
+Router → Controller → analytics_service
+"""
 from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
